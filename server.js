@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const XLSX = require('xlsx');
 const app = express();
 const port = 3000;
 
@@ -25,6 +26,11 @@ if (!fs.existsSync(DATA_FILE)) {
 
 // Rota principal - página inicial
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'home.html'));
+});
+
+// Rota para o sistema de não-conformidades
+app.get('/index.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -118,6 +124,108 @@ app.delete('/api/naoconformidades/:id', (req, res) => {
         res.json({ mensagem: 'Não-conformidade excluída com sucesso' });
     } catch (error) {
         res.status(500).json({ erro: 'Erro ao excluir não-conformidade', detalhes: error.message });
+    }
+});
+
+// API - Exportar não-conformidades para Excel
+app.get('/api/naoconformidades/exportar', (req, res) => {
+    try {
+        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        
+        // Aplicar filtros se fornecidos na query
+        let dadosFiltrados = [...data];
+        const { status, setor, termo } = req.query;
+        
+        if (status) {
+            dadosFiltrados = dadosFiltrados.filter(item => 
+                item.status && item.status.toLowerCase() === status.toLowerCase());
+        }
+        
+        if (setor) {
+            dadosFiltrados = dadosFiltrados.filter(item => 
+                item.area && item.area.toLowerCase() === setor.toLowerCase());
+        }
+        
+        if (termo) {
+            const termoBusca = termo.toLowerCase();
+            dadosFiltrados = dadosFiltrados.filter(item => 
+                (item.descricao && item.descricao.toLowerCase().includes(termoBusca)) ||
+                (item.responsavel && item.responsavel.toLowerCase().includes(termoBusca)) ||
+                (item.id && item.id.toLowerCase().includes(termoBusca))
+            );
+        }
+        
+        // Prepara os dados para exportação com formatação melhorada
+        const dadosExportacao = dadosFiltrados.map(item => {
+            // Formatar datas
+            const dataRegistro = item.dataRegistro ? new Date(item.dataRegistro) : null;
+            const dataFormatada = dataRegistro ? 
+                `${dataRegistro.getDate().toString().padStart(2, '0')}/${(dataRegistro.getMonth() + 1).toString().padStart(2, '0')}/${dataRegistro.getFullYear()}` : '';
+            
+            const dataAtualizacao = item.dataAtualizacao ? new Date(item.dataAtualizacao) : null;
+            const dataAtualizacaoFormatada = dataAtualizacao ? 
+                `${dataAtualizacao.getDate().toString().padStart(2, '0')}/${(dataAtualizacao.getMonth() + 1).toString().padStart(2, '0')}/${dataAtualizacao.getFullYear()}` : '';
+            
+            return {
+                'ID': item.id,
+                'Data': item.data,
+                'Título': item.titulo || '',
+                'Descrição': item.descricao || '',
+                'Setor': item.area || '',
+                'Responsável': item.responsavel || '',
+                'Status': item.status || '',
+                'Prazo': item.prazo || '',
+                'Causa': item.causa || '',
+                'Ações Corretivas': item.acoesCorretivas || '',
+                'Ações': Array.isArray(item.acoes) ? item.acoes.map(acao => acao.descricao).join('; ') : '',
+                'Data de Registro': dataFormatada,
+                'Data de Atualização': dataAtualizacaoFormatada
+            };
+        });
+
+        // Cria uma nova planilha
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(dadosExportacao);
+        
+        // Ajusta a largura das colunas
+        const colunas = Object.keys(dadosExportacao[0] || {});
+        const largurasColunas = {};
+        
+        // Define largura mínima para cada coluna
+        colunas.forEach(col => {
+            largurasColunas[col] = { wch: Math.max(col.length, 10) };
+        });
+        
+        // Ajusta largura com base no conteúdo
+        dadosExportacao.forEach(row => {
+            colunas.forEach(col => {
+                const valor = String(row[col] || '');
+                const comprimento = valor.length;
+                if (comprimento > largurasColunas[col].wch) {
+                    largurasColunas[col].wch = Math.min(comprimento, 50); // Limita a 50 caracteres
+                }
+            });
+        });
+        
+        // Aplica as larguras das colunas
+        worksheet['!cols'] = colunas.map(col => largurasColunas[col]);
+
+        // Adiciona a planilha ao workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Não-Conformidades');
+
+        // Gera o arquivo Excel
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+        // Define os headers para download
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=nao-conformidades.xlsx');
+        res.setHeader('Cache-Control', 'no-cache');
+
+        // Envia o arquivo
+        res.send(excelBuffer);
+    } catch (error) {
+        console.error('Erro ao exportar:', error);
+        res.status(500).json({ erro: 'Erro ao exportar não-conformidades', detalhes: error.message });
     }
 });
 

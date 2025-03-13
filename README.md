@@ -1,72 +1,107 @@
-# Sistema de Registro e Controle de Não-Conformidades
+# Sistema de Gestão Integrado
 
-Um sistema web para registro, gestão e acompanhamento de não-conformidades, desenvolvido com Node.js, HTML, JavaScript e armazenamento em arquivo JSON.
-
-## Funcionalidades
-
-- Cadastro de não-conformidades com informações detalhadas
-- Atualização do status e informações de acompanhamento
-- Filtragem por status, setor e texto
-- Visualização detalhada dos registros
-- Exportação dos dados para CSV
+Este projeto consiste em dois sistemas integrados:
+1. **Sistema de Não-Conformidades**: Para registro e controle de não-conformidades
+2. **Sistema de Produção**: Para registro de produção com timer e sistema de conquistas
 
 ## Requisitos
 
-- Node.js (versão 14.x ou superior)
-- Navegador web moderno
-
-## Instalação
-
-1. Clone este repositório ou faça o download dos arquivos
-2. Navegue até a pasta do projeto e instale as dependências:
-
-```bash
-npm install
-```
-
-3. Inicie o servidor:
-
-```bash
-node server.js
-```
-
-4. Acesse o sistema no navegador:
-
-```
-http://localhost:3000
-```
+- Node.js (v14 ou superior)
+- PHP (v7.4 ou superior)
+- MySQL (v5.7 ou superior)
+- Servidor web (Apache ou similar para os arquivos PHP)
 
 ## Estrutura do Projeto
 
-- `server.js` - Servidor Node.js e API
-- `public/` - Arquivos estáticos da aplicação web
-  - `index.html` - Interface do usuário
-  - `styles.css` - Estilos da aplicação
-  - `app.js` - Lógica do cliente
-- `data/` - Pasta onde são armazenados os dados em formato JSON
-
-## Armazenamento de Dados
-
-As não-conformidades são armazenadas em arquivo JSON localizado em:
-
 ```
-data/nao-conformidades.json
+/
+├── data/                  # Dados do sistema de não-conformidades
+├── public/                # Arquivos públicos
+│   ├── home.html          # Página inicial
+│   ├── index.html         # Sistema de não-conformidades
+│   ├── producao.php       # Sistema de produção
+│   ├── script.js          # JavaScript para exportação Excel
+│   └── styles.css         # Estilos CSS
+├── server.js              # Servidor Node.js
+├── package.json           # Dependências Node.js
+├── database.sql           # Script SQL para criar o banco de dados
+└── README.md              # Este arquivo
 ```
 
-## API Endpoints
+## Configuração
 
-O servidor fornece os seguintes endpoints para a API:
+### 1. Configuração do Node.js (Sistema de Não-Conformidades)
 
-- `GET /api/naoconformidades` - Lista todas as não-conformidades
-- `POST /api/naoconformidades` - Cria uma nova não-conformidade
-- `GET /api/naoconformidades/:id` - Busca uma não-conformidade específica
-- `PUT /api/naoconformidades/:id` - Atualiza uma não-conformidade
-- `DELETE /api/naoconformidades/:id` - Exclui uma não-conformidade
+1. Instale as dependências:
+   ```
+   npm install
+   ```
 
-## Como Usar
+2. Inicie o servidor Node.js:
+   ```
+   node server.js
+   ```
 
-1. Na tela inicial, clique em "Nova Não-Conformidade" para registrar uma ocorrência
-2. Preencha todos os campos obrigatórios e clique em "Salvar"
-3. Utilize os filtros para localizar registros específicos
-4. Clique nos botões de ação para ver detalhes, editar ou excluir um registro
-5. Utilize o botão "Exportar" para baixar os dados em formato CSV 
+3. O servidor estará disponível em `http://localhost:3000`
+
+### 2. Configuração do PHP e MySQL (Sistema de Produção)
+
+1. Configure um servidor web (Apache, XAMPP, etc.) para servir arquivos PHP
+
+2. Crie o banco de dados MySQL:
+   - Importe o arquivo `database.sql` para o seu servidor MySQL
+   - Ou execute os comandos SQL manualmente
+
+3. Configure a conexão com o banco de dados:
+   - Abra o arquivo `public/producao.php`
+   - Edite as variáveis de conexão no início do arquivo:
+     ```php
+     $host = "localhost";
+     $usuario = "root";
+     $senha = "";
+     $banco = "sistema_producao";
+     ```
+
+### 3. Configuração Integrada (Opcional)
+
+Para uma experiência integrada completa, você pode:
+
+1. Configurar o Apache para servir os arquivos PHP
+2. Configurar um proxy reverso para redirecionar as requisições Node.js
+3. Ou simplesmente executar o Node.js para o sistema de não-conformidades e acessar o sistema de produção diretamente pelo servidor web
+
+## Funcionalidades
+
+### Sistema de Não-Conformidades
+
+- Registro de não-conformidades
+- Acompanhamento de status
+- Filtros de busca
+- Exportação para Excel
+
+### Sistema de Produção
+
+- Timer de produção com controle de tempo
+- Registro de produção com cálculo automático de pontos
+- Sistema de medalhas baseado na quantidade produzida:
+  - Bronze: 5.000+ peças
+  - Prata: 6.000+ peças
+  - Ouro: 7.000+ peças
+- Histórico de produção
+
+## Uso do Sistema de Produção
+
+1. Inicie o timer clicando no botão "Iniciar"
+2. Preencha os dados do formulário (funcionário, OS, material, etc.)
+3. Insira a quantidade de peças produzidas
+4. Clique em "Concluir" quando terminar a produção
+5. Clique em "Registrar Produção" para salvar os dados
+
+O sistema calculará automaticamente:
+- A duração em minutos
+- Os pontos (quantidade / duração)
+- A medalha conquistada com base na quantidade
+
+## Licença
+
+Este projeto está licenciado sob a licença ISC. 

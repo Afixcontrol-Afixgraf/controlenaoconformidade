@@ -1,135 +1,3 @@
-<?php
-// Configuração da conexão com o banco de dados
-$host = "localhost";
-$usuario = "root";
-$senha = "";
-$banco = "sistema_producao";
-
-// Inicializa a conexão
-$conexao = new mysqli($host, $usuario, $senha, $banco);
-
-// Verifica se houve erro na conexão
-if ($conexao->connect_error) {
-    die("Falha na conexão: " . $conexao->connect_error);
-}
-
-// Função para criar as tabelas se não existirem
-function criarTabelas($conexao) {
-    // Tabela de funcionários
-    $sql_funcionarios = "CREATE TABLE IF NOT EXISTS funcionarios (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        nome VARCHAR(100) NOT NULL,
-        cargo VARCHAR(50),
-        setor VARCHAR(50),
-        data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )";
-    
-    // Tabela de produção
-    $sql_producao = "CREATE TABLE IF NOT EXISTS producao (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        data_registro DATE NOT NULL,
-        id_funcionario INT NOT NULL,
-        os VARCHAR(20) NOT NULL,
-        material VARCHAR(100) NOT NULL,
-        medida VARCHAR(50) NOT NULL,
-        quantidade INT NOT NULL,
-        duracao INT NOT NULL,
-        pontos FLOAT NOT NULL,
-        medalha VARCHAR(20),
-        data_hora_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (id_funcionario) REFERENCES funcionarios(id)
-    )";
-    
-    // Executa as queries
-    $conexao->query($sql_funcionarios);
-    $conexao->query($sql_producao);
-    
-    // Insere alguns funcionários de exemplo se a tabela estiver vazia
-    $result = $conexao->query("SELECT COUNT(*) as total FROM funcionarios");
-    $row = $result->fetch_assoc();
-    
-    if ($row['total'] == 0) {
-        $conexao->query("INSERT INTO funcionarios (nome, cargo, setor) VALUES 
-            ('João Silva', 'Operador', 'Produção'),
-            ('Maria Santos', 'Operadora', 'Produção'),
-            ('Carlos Oliveira', 'Supervisor', 'Produção'),
-            ('Ana Pereira', 'Operadora', 'Produção')");
-    }
-}
-
-// Cria as tabelas se não existirem
-criarTabelas($conexao);
-
-// Processa o formulário de registro de produção
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['registrar'])) {
-    $id_funcionario = $_POST['funcionario'];
-    $os = $_POST['os'];
-    $material = $_POST['material'];
-    $medida = $_POST['medida'];
-    $quantidade = $_POST['quantidade'];
-    $duracao = $_POST['duracao']; // em minutos
-    
-    // Calcula os pontos (eficiência)
-    $pontos = $quantidade / $duracao;
-    
-    // Determina a medalha com base na quantidade
-    $medalha = "";
-    if ($quantidade >= 7000) {
-        $medalha = "Ouro";
-    } elseif ($quantidade >= 6000) {
-        $medalha = "Prata";
-    } elseif ($quantidade >= 5000) {
-        $medalha = "Bronze";
-    }
-    
-    // Insere o registro no banco de dados
-    $sql = "INSERT INTO producao (data_registro, id_funcionario, os, material, medida, quantidade, duracao, pontos, medalha) 
-            VALUES (CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    $stmt = $conexao->prepare($sql);
-    $stmt->bind_param("isssiiis", $id_funcionario, $os, $material, $medida, $quantidade, $duracao, $pontos, $medalha);
-    
-    if ($stmt->execute()) {
-        $mensagem = "Produção registrada com sucesso!";
-        $tipo_mensagem = "success";
-    } else {
-        $mensagem = "Erro ao registrar produção: " . $stmt->error;
-        $tipo_mensagem = "danger";
-    }
-    
-    $stmt->close();
-}
-
-// Processa a exclusão de registro
-if ($_SERVER["REQUEST_METHOD"] == "GET" && isset($_GET['excluir'])) {
-    $id = $_GET['excluir'];
-    
-    $sql = "DELETE FROM producao WHERE id = ?";
-    $stmt = $conexao->prepare($sql);
-    $stmt->bind_param("i", $id);
-    
-    if ($stmt->execute()) {
-        $mensagem = "Registro excluído com sucesso!";
-        $tipo_mensagem = "success";
-    } else {
-        $mensagem = "Erro ao excluir registro: " . $stmt->error;
-        $tipo_mensagem = "danger";
-    }
-    
-    $stmt->close();
-}
-
-// Busca os funcionários para o select
-$funcionarios = $conexao->query("SELECT id, nome FROM funcionarios ORDER BY nome");
-
-// Busca os registros de produção
-$sql_producao = "SELECT p.*, f.nome as nome_funcionario 
-                FROM producao p 
-                JOIN funcionarios f ON p.id_funcionario = f.id 
-                ORDER BY p.data_registro DESC, p.id DESC";
-$registros = $conexao->query($sql_producao);
-?>
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -141,6 +9,7 @@ $registros = $conexao->query($sql_producao);
     <title>Sistema de Produção</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
     <style>
         :root {
             --primary-color: #198754;
@@ -276,7 +145,7 @@ $registros = $conexao->query($sql_producao);
                         <a class="nav-link" href="/">Início</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="/producao.php">Produção</a>
+                        <a class="nav-link active" aria-current="page" href="/producao.html">Produção</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/index.html">Não-Conformidades</a>
@@ -287,12 +156,7 @@ $registros = $conexao->query($sql_producao);
     </nav>
 
     <div class="container mt-4">
-        <?php if (isset($mensagem)): ?>
-        <div class="alert alert-<?php echo $tipo_mensagem; ?> alert-dismissible fade show" role="alert">
-            <?php echo $mensagem; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-        </div>
-        <?php endif; ?>
+        <div id="alertContainer"></div>
 
         <div class="row mb-4">
             <div class="col-12">
@@ -345,14 +209,11 @@ $registros = $conexao->query($sql_producao);
                         <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> Registro de Produção</h5>
                     </div>
                     <div class="card-body">
-                        <form method="POST" id="formProducao">
+                        <form id="formProducao">
                             <div class="mb-3">
                                 <label for="funcionario" class="form-label">Funcionário</label>
                                 <select class="form-select" id="funcionario" name="funcionario" required>
                                     <option value="">Selecione o funcionário</option>
-                                    <?php while ($funcionario = $funcionarios->fetch_assoc()): ?>
-                                    <option value="<?php echo $funcionario['id']; ?>"><?php echo $funcionario['nome']; ?></option>
-                                    <?php endwhile; ?>
                                 </select>
                             </div>
                             
@@ -384,7 +245,7 @@ $registros = $conexao->query($sql_producao);
                             </div>
                             
                             <div class="d-grid">
-                                <button type="submit" class="btn btn-success" name="registrar" id="btnRegistrar" disabled>
+                                <button type="submit" class="btn btn-success" id="btnRegistrar" disabled>
                                     <i class="bi bi-save"></i> Registrar Produção
                                 </button>
                             </div>
@@ -414,42 +275,10 @@ $registros = $conexao->query($sql_producao);
                                 <th>Ações</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php if ($registros->num_rows > 0): ?>
-                                <?php while ($registro = $registros->fetch_assoc()): ?>
-                                    <tr>
-                                        <td><?php echo date('d/m/Y', strtotime($registro['data_registro'])); ?></td>
-                                        <td><?php echo $registro['nome_funcionario']; ?></td>
-                                        <td><?php echo $registro['os']; ?></td>
-                                        <td><?php echo $registro['material']; ?> (<?php echo $registro['medida']; ?>)</td>
-                                        <td><?php echo number_format($registro['quantidade'], 0, ',', '.'); ?></td>
-                                        <td><?php echo $registro['duracao']; ?> min</td>
-                                        <td><?php echo number_format($registro['pontos'], 2, ',', '.'); ?></td>
-                                        <td>
-                                            <?php if ($registro['medalha'] == 'Ouro'): ?>
-                                                <i class="bi bi-award-fill medal-icon medal-gold" title="Medalha de Ouro"></i>
-                                            <?php elseif ($registro['medalha'] == 'Prata'): ?>
-                                                <i class="bi bi-award-fill medal-icon medal-silver" title="Medalha de Prata"></i>
-                                            <?php elseif ($registro['medalha'] == 'Bronze'): ?>
-                                                <i class="bi bi-award-fill medal-icon medal-bronze" title="Medalha de Bronze"></i>
-                                            <?php else: ?>
-                                                -
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="?excluir=<?php echo $registro['id']; ?>" class="btn btn-outline-danger btn-acoes" onclick="return confirm('Tem certeza que deseja excluir este registro?')">
-                                                    <i class="bi bi-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="9" class="text-center">Nenhum registro encontrado</td>
-                                </tr>
-                            <?php endif; ?>
+                        <tbody id="tabelaProducao">
+                            <tr>
+                                <td colspan="9" class="text-center">Carregando registros...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -472,8 +301,176 @@ $registros = $conexao->query($sql_producao);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Função para exibir mensagens de alerta
+        function mostrarAlerta(mensagem, tipo) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertHTML = `
+                <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                    ${mensagem}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            `;
+            alertContainer.innerHTML = alertHTML;
+            
+            // Remover o alerta após 5 segundos
+            setTimeout(() => {
+                const alert = document.querySelector('.alert');
+                if (alert) {
+                    alert.classList.remove('show');
+                    setTimeout(() => alertContainer.innerHTML = '', 150);
+                }
+            }, 5000);
+        }
+        
+        // Função para carregar os funcionários
+        async function carregarFuncionarios() {
+            try {
+                const response = await fetch('api/funcionarios.php');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const selectFuncionario = document.getElementById('funcionario');
+                    selectFuncionario.innerHTML = '<option value="">Selecione o funcionário</option>';
+                    
+                    data.data.forEach(funcionario => {
+                        const option = document.createElement('option');
+                        option.value = funcionario.id;
+                        option.textContent = funcionario.nome;
+                        selectFuncionario.appendChild(option);
+                    });
+                } else {
+                    mostrarAlerta('Erro ao carregar funcionários: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                mostrarAlerta('Erro ao carregar funcionários: ' + error.message, 'danger');
+            }
+        }
+        
+        // Função para carregar os registros de produção
+        async function carregarRegistrosProducao() {
+            try {
+                const response = await fetch('api/producao.php');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tabelaProducao = document.getElementById('tabelaProducao');
+                    
+                    if (data.data.length === 0) {
+                        tabelaProducao.innerHTML = '<tr><td colspan="9" class="text-center">Nenhum registro encontrado</td></tr>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.data.forEach(registro => {
+                        const dataFormatada = new Date(registro.data_registro).toLocaleDateString('pt-BR');
+                        let medalhaHTML = '-';
+                        
+                        if (registro.medalha === 'Ouro') {
+                            medalhaHTML = '<i class="bi bi-award-fill medal-icon medal-gold" title="Medalha de Ouro"></i>';
+                        } else if (registro.medalha === 'Prata') {
+                            medalhaHTML = '<i class="bi bi-award-fill medal-icon medal-silver" title="Medalha de Prata"></i>';
+                        } else if (registro.medalha === 'Bronze') {
+                            medalhaHTML = '<i class="bi bi-award-fill medal-icon medal-bronze" title="Medalha de Bronze"></i>';
+                        }
+                        
+                        html += `
+                            <tr>
+                                <td>${dataFormatada}</td>
+                                <td>${registro.nome_funcionario}</td>
+                                <td>${registro.os}</td>
+                                <td>${registro.material} (${registro.medida})</td>
+                                <td>${parseInt(registro.quantidade).toLocaleString('pt-BR')}</td>
+                                <td>${registro.duracao} min</td>
+                                <td>${parseFloat(registro.pontos).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td>${medalhaHTML}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-danger btn-acoes btn-excluir" data-id="${registro.id}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tabelaProducao.innerHTML = html;
+                    
+                    // Adicionar eventos aos botões de excluir
+                    document.querySelectorAll('.btn-excluir').forEach(btn => {
+                        btn.addEventListener('click', async function() {
+                            if (confirm('Tem certeza que deseja excluir este registro?')) {
+                                const id = this.getAttribute('data-id');
+                                await excluirRegistro(id);
+                            }
+                        });
+                    });
+                } else {
+                    mostrarAlerta('Erro ao carregar registros: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                mostrarAlerta('Erro ao carregar registros: ' + error.message, 'danger');
+            }
+        }
+        
+        // Função para registrar produção
+        async function registrarProducao(dados) {
+            try {
+                const response = await fetch('api/producao.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    mostrarAlerta(data.message, 'success');
+                    document.getElementById('formProducao').reset();
+                    carregarRegistrosProducao();
+                    
+                    // Reiniciar o timer
+                    document.getElementById('btnReiniciar').click();
+                } else {
+                    mostrarAlerta('Erro: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                mostrarAlerta('Erro ao registrar produção: ' + error.message, 'danger');
+            }
+        }
+        
+        // Função para excluir registro
+        async function excluirRegistro(id) {
+            try {
+                const response = await fetch('api/producao.php', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id: id })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    mostrarAlerta(data.message, 'success');
+                    carregarRegistrosProducao();
+                } else {
+                    mostrarAlerta('Erro: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                mostrarAlerta('Erro ao excluir registro: ' + error.message, 'danger');
+            }
+        }
+        
         // Timer de produção
         document.addEventListener('DOMContentLoaded', function() {
+            // Carregar dados iniciais
+            carregarFuncionarios();
+            carregarRegistrosProducao();
+            
             // Elementos do DOM
             const timerDisplay = document.getElementById('timer');
             const btnIniciar = document.getElementById('btnIniciar');
@@ -484,6 +481,7 @@ $registros = $conexao->query($sql_producao);
             const inputDuracao = document.getElementById('duracao');
             const inputQuantidade = document.getElementById('quantidade');
             const progressBar = document.getElementById('progressBar');
+            const formProducao = document.getElementById('formProducao');
             
             // Variáveis do timer
             let startTime;
@@ -621,6 +619,22 @@ $registros = $conexao->query($sql_producao);
             
             // Atualiza a barra de progresso quando a quantidade mudar
             inputQuantidade.addEventListener('input', updateProgressBar);
+            
+            // Submissão do formulário
+            formProducao.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const dados = {
+                    id_funcionario: document.getElementById('funcionario').value,
+                    os: document.getElementById('os').value,
+                    material: document.getElementById('material').value,
+                    medida: document.getElementById('medida').value,
+                    quantidade: document.getElementById('quantidade').value,
+                    duracao: document.getElementById('duracao').value
+                };
+                
+                registrarProducao(dados);
+            });
         });
     </script>
 </body>

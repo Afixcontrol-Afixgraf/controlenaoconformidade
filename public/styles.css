@@ -1,0 +1,111 @@
+/* Estilos gerais */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand i {
+    margin-right: 8px;
+}
+
+/* Estilos para os cards e tabelas */
+.card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    font-weight: 600;
+}
+
+.table thead th {
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Estilos para os badges de status */
+.badge-status {
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.status-aberto {
+    background-color: #e6f7ff;
+    color: #0066cc;
+    border: 1px solid #99ceff;
+}
+
+.status-andamento {
+    background-color: #fff7e6;
+    color: #996600;
+    border: 1px solid #ffd580;
+}
+
+.status-concluido {
+    background-color: #e6fff0;
+    color: #008040;
+    border: 1px solid #99e6b3;
+}
+
+.status-cancelado {
+    background-color: #ffebee;
+    color: #b30000;
+    border: 1px solid #ffb3b3;
+}
+
+/* Botões de ação na tabela */
+.btn-acoes {
+    padding: 3px 8px;
+    font-size: 0.85rem;
+}
+
+.btn-group-acoes .btn {
+    margin-right: 5px;
+}
+
+.btn-group-acoes .btn:last-child {
+    margin-right: 0;
+}
+
+/* Modais */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Detalhes da não-conformidade */
+.detalhe-item {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detalhe-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Responsividade */
+@media (max-width: 767.98px) {
+    .btn-acoes {
+        padding: 4px 6px;
+        font-size: 0.8rem;
+    }
+
+    .btn-group-acoes .btn i {
+        margin-right: 0;
+    }
+
+    .btn-group-acoes .btn span {
+        display: none;
+    }
+}

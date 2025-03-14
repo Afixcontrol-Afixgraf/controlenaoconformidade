@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Gestão de Produção e Não-Conformidades - Gerenciamento de Usuários">
+    <meta name="theme-color" content="#0d6efd">
+    <title>Gerenciamento de Usuários - Sistema de Gestão Integrado</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        .table-responsive {
+            margin-top: 2rem;
+        }
+        
+        .btn-acao {
+            margin-right: 0.5rem;
+        }
+        
+        .badge-nivel {
+            font-size: 0.85rem;
+            padding: 0.35rem 0.65rem;
+        }
+        
+        .badge-admin {
+            background-color: #dc3545;
+        }
+        
+        .badge-supervisor {
+            background-color: #fd7e14;
+        }
+        
+        .badge-operador {
+            background-color: #0d6efd;
+        }
+        
+        .status-ativo {
+            color: #198754;
+        }
+        
+        .status-inativo {
+            color: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-gear-fill" aria-hidden="true"></i> Sistema de Gestão Integrado
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">Início</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="producao.html">Produção</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="rnc.html">RNC</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="usuarios.html">Usuários</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <span class="navbar-text me-3" id="usuario-logado"></span>
+                    <button class="btn btn-outline-light btn-sm" id="btn-logout">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Gerenciamento de Usuários</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalUsuario" id="btn-novo-usuario">
+                <i class="bi bi-person-plus"></i> Novo Usuário
+            </button>
+        </div>
+
+        <div class="alert alert-info mt-3" role="alert">
+            <i class="bi bi-info-circle"></i> Esta página permite gerenciar os usuários do sistema. Apenas administradores podem adicionar, editar ou excluir usuários.
+        </div>
+
+        <div id="alerta-mensagem" class="alert d-none mt-3" role="alert"></div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Nível de Acesso</th>
+                        <th>Status</th>
+                        <th>Data de Cadastro</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-usuarios">
+                    <!-- Os usuários serão carregados dinamicamente aqui -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal para adicionar/editar usuário -->
+    <div class="modal fade" id="modalUsuario" tabindex="-1" aria-labelledby="modalUsuarioLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalUsuarioLabel">Novo Usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-usuario">
+                        <input type="hidden" id="usuario-id">
+                        <div class="mb-3">
+                            <label for="usuario-nome" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="usuario-nome" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="usuario-email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="usuario-email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="usuario-senha" class="form-label">Senha</label>
+                            <input type="password" class="form-control" id="usuario-senha">
+                            <div class="form-text" id="senha-info">A senha deve ter pelo menos 6 caracteres.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="usuario-nivel" class="form-label">Nível de Acesso</label>
+                            <select class="form-select" id="usuario-nivel" required>
+                                <option value="operador">Operador</option>
+                                <option value="supervisor">Supervisor</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 form-check" id="container-usuario-ativo">
+                            <input type="checkbox" class="form-check-input" id="usuario-ativo" checked>
+                            <label class="form-check-label" for="usuario-ativo">Usuário Ativo</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btn-salvar-usuario">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação de exclusão -->
+    <div class="modal fade" id="modalConfirmacao" tabindex="-1" aria-labelledby="modalConfirmacaoLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalConfirmacaoLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btn-confirmar-exclusao">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar autenticação
+            verificarAutenticacao();
+            
+            // Elementos do DOM
+            const tabelaUsuarios = document.getElementById('tabela-usuarios');
+            const formUsuario = document.getElementById('form-usuario');
+            const modalUsuario = new bootstrap.Modal(document.getElementById('modalUsuario'));
+            const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmacao'));
+            const btnSalvarUsuario = document.getElementById('btn-salvar-usuario');
+            const btnConfirmarExclusao = document.getElementById('btn-confirmar-exclusao');
+            const alertaMensagem = document.getElementById('alerta-mensagem');
+            const usuarioLogado = document.getElementById('usuario-logado');
+            const btnLogout = document.getElementById('btn-logout');
+            
+            // Variáveis globais
+            let usuarioIdParaExcluir = null;
+            let usuarioAtual = null;
+            
+            // Carregar usuários
+            carregarUsuarios();
+            
+            // Event listeners
+            btnSalvarUsuario.addEventListener('click', salvarUsuario);
+            btnConfirmarExclusao.addEventListener('click', excluirUsuario);
+            btnLogout.addEventListener('click', fazerLogout);
+            
+            // Função para verificar autenticação
+            function verificarAutenticacao() {
+                fetch('api/usuarios.php?verificar_auth=1')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (data.autenticado) {
+                            usuarioAtual = data.usuario;
+                            usuarioLogado.textContent = `Olá, ${data.usuario.nome}`;
+                            
+                            // Verificar se o usuário tem permissão para acessar esta página
+                            if (data.usuario.nivel_acesso !== 'admin' && data.usuario.nivel_acesso !== 'supervisor') {
+                                window.location.href = 'index.html';
+                                return;
+                            }
+                            
+                            // Mostrar/ocultar botões de acordo com o nível de acesso
+                            if (data.usuario.nivel_acesso !== 'admin') {
+                                document.getElementById('btn-novo-usuario').style.display = 'none';
+                            }
+                        } else {
+                            // Redirecionar para a página de login
+                            window.location.href = 'login.html';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao verificar autenticação:', error);
+                    window.location.href = 'login.html';
+                });
+            }
+            
+            // Função para carregar usuários
+            function carregarUsuarios() {
+                fetch('api/usuarios.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        renderizarUsuarios(data.usuarios);
+                    } else {
+                        mostrarAlerta(data.message || 'Erro ao carregar usuários.', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    mostrarAlerta('Erro ao conectar com o servidor.', 'danger');
+                });
+            }
+            
+            // Função para renderizar usuários na tabela
+            function renderizarUsuarios(usuarios) {
+                tabelaUsuarios.innerHTML = '';
+                
+                usuarios.forEach(usuario => {
+                    const tr = document.createElement('tr');
+                    
+                    // Definir classes para o nível de acesso
+                    let classeNivel = '';
+                    switch (usuario.nivel_acesso) {
+                        case 'admin':
+                            classeNivel = 'badge-admin';
+                            break;
+                        case 'supervisor':
+                            classeNivel = 'badge-supervisor';
+                            break;
+                        case 'operador':
+                            classeNivel = 'badge-operador';
+                            break;
+                    }
+                    
+                    // Formatar data de cadastro
+                    const dataCadastro = new Date(usuario.data_cadastro);
+                    const dataFormatada = dataCadastro.toLocaleDateString('pt-BR') + ' ' + 
+                                         dataCadastro.toLocaleTimeString('pt-BR');
+                    
+                    tr.innerHTML = `
+                        <td>${usuario.id}</td>
+                        <td>${usuario.nome}</td>
+                        <td>${usuario.email}</td>
+                        <td><span class="badge ${classeNivel}">${usuario.nivel_acesso}</span></td>
+                        <td>
+                            <span class="${usuario.ativo == 1 ? 'status-ativo' : 'status-inativo'}">
+                                <i class="bi ${usuario.ativo == 1 ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>
+                                ${usuario.ativo == 1 ? 'Ativo' : 'Inativo'}
+                            </span>
+                        </td>
+                        <td>${dataFormatada}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary btn-acao btn-editar" data-id="${usuario.id}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-acao btn-excluir" data-id="${usuario.id}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    tabelaUsuarios.appendChild(tr);
+                });
+                
+                // Adicionar event listeners para os botões de editar e excluir
+                document.querySelectorAll('.btn-editar').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-id');
+                        prepararEdicao(id, usuarios);
+                    });
+                });
+                
+                document.querySelectorAll('.btn-excluir').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-id');
+                        prepararExclusao(id);
+                    });
+                });
+                
+                // Desabilitar botões de ação se o usuário não for admin
+                if (usuarioAtual && usuarioAtual.nivel_acesso !== 'admin') {
+                    document.querySelectorAll('.btn-editar, .btn-excluir').forEach(btn => {
+                        btn.disabled = true;
+                    });
+                }
+            }
+            
+            // Função para preparar o modal para adicionar um novo usuário
+            document.getElementById('btn-novo-usuario').addEventListener('click', () => {
+                document.getElementById('modalUsuarioLabel').textContent = 'Novo Usuário';
+                document.getElementById('usuario-id').value = '';
+                document.getElementById('usuario-nome').value = '';
+                document.getElementById('usuario-email').value = '';
+                document.getElementById('usuario-senha').value = '';
+                document.getElementById('usuario-nivel').value = 'operador';
+                document.getElementById('usuario-ativo').checked = true;
+                document.getElementById('senha-info').textContent = 'A senha deve ter pelo menos 6 caracteres.';
+                document.getElementById('container-usuario-ativo').style.display = 'none';
+            });
+            
+            // Função para preparar o modal para editar um usuário existente
+            function prepararEdicao(id, usuarios) {
+                const usuario = usuarios.find(u => u.id == id);
+                
+                if (usuario) {
+                    document.getElementById('modalUsuarioLabel').textContent = 'Editar Usuário';
+                    document.getElementById('usuario-id').value = usuario.id;
+                    document.getElementById('usuario-nome').value = usuario.nome;
+                    document.getElementById('usuario-email').value = usuario.email;
+                    document.getElementById('usuario-senha').value = '';
+                    document.getElementById('usuario-nivel').value = usuario.nivel_acesso;
+                    document.getElementById('usuario-ativo').checked = usuario.ativo == 1;
+                    document.getElementById('senha-info').textContent = 'Deixe em branco para manter a senha atual.';
+                    document.getElementById('container-usuario-ativo').style.display = 'block';
+                    
+                    modalUsuario.show();
+                }
+            }
+            
+            // Função para preparar a exclusão de um usuário
+            function prepararExclusao(id) {
+                usuarioIdParaExcluir = id;
+                modalConfirmacao.show();
+            }
+            
+            // Função para salvar um usuário (novo ou editado)
+            function salvarUsuario() {
+                const id = document.getElementById('usuario-id').value;
+                const nome = document.getElementById('usuario-nome').value;
+                const email = document.getElementById('usuario-email').value;
+                const senha = document.getElementById('usuario-senha').value;
+                const nivelAcesso = document.getElementById('usuario-nivel').value;
+                const ativo = document.getElementById('usuario-ativo').checked;
+                
+                // Validação básica
+                if (!nome || !email || (!id && !senha)) {
+                    mostrarAlerta('Por favor, preencha todos os campos obrigatórios.', 'danger');
+                    return;
+                }
+                
+                if (senha && senha.length < 6) {
+                    mostrarAlerta('A senha deve ter pelo menos 6 caracteres.', 'danger');
+                    return;
+                }
+                
+                // Preparar dados para envio
+                const dados = {
+                    nome,
+                    email,
+                    nivel_acesso: nivelAcesso
+                };
+                
+                if (senha) {
+                    dados.senha = senha;
+                }
+                
+                if (id) {
+                    dados.id = id;
+                    dados.ativo = ativo;
+                    
+                    // Atualizar usuário existente
+                    fetch('api/usuarios.php', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(dados)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            modalUsuario.hide();
+                            mostrarAlerta('Usuário atualizado com sucesso!', 'success');
+                            carregarUsuarios();
+                        } else {
+                            mostrarAlerta(data.message || 'Erro ao atualizar usuário.', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        mostrarAlerta('Erro ao conectar com o servidor.', 'danger');
+                    });
+                } else {
+                    // Adicionar novo usuário
+                    fetch('api/usuarios.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(dados)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            modalUsuario.hide();
+                            mostrarAlerta('Usuário cadastrado com sucesso!', 'success');
+                            carregarUsuarios();
+                        } else {
+                            mostrarAlerta(data.message || 'Erro ao cadastrar usuário.', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        mostrarAlerta('Erro ao conectar com o servidor.', 'danger');
+                    });
+                }
+            }
+            
+            // Função para excluir um usuário
+            function excluirUsuario() {
+                if (!usuarioIdParaExcluir) return;
+                
+                fetch(`api/usuarios.php?id=${usuarioIdParaExcluir}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        modalConfirmacao.hide();
+                        mostrarAlerta('Usuário excluído com sucesso!', 'success');
+                        carregarUsuarios();
+                    } else {
+                        mostrarAlerta(data.message || 'Erro ao excluir usuário.', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    mostrarAlerta('Erro ao conectar com o servidor.', 'danger');
+                });
+            }
+            
+            // Função para fazer logout
+            function fazerLogout() {
+                fetch('api/usuarios.php?logout=1')
+                .then(response => response.json())
+                .then(data => {
+                    window.location.href = 'login.html';
+                })
+                .catch(error => {
+                    console.error('Erro ao fazer logout:', error);
+                    window.location.href = 'login.html';
+                });
+            }
+            
+            // Função para mostrar alertas
+            function mostrarAlerta(mensagem, tipo) {
+                alertaMensagem.textContent = mensagem;
+                alertaMensagem.className = `alert alert-${tipo} mt-3`;
+                
+                // Esconder o alerta após 5 segundos
+                setTimeout(() => {
+                    alertaMensagem.classList.add('d-none');
+                }, 5000);
+            }
+        });
+    </script>
+</body>
+
+</html> 

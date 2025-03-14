@@ -3,6 +3,9 @@ require_once 'config.php';
 
 // Rota para obter todos os registros de produção
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    // Verificar se o usuário está autenticado
+    verificarAutenticacao();
+    
     $sql = "SELECT p.*, f.nome as nome_funcionario 
             FROM producao p 
             JOIN funcionarios f ON p.id_funcionario = f.id 
@@ -21,6 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 // Rota para adicionar um novo registro de produção
 else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verificar se o usuário está autenticado
+    verificarAutenticacao();
+    
     $data = json_decode(file_get_contents("php://input"), true);
     
     // Validação dos campos obrigatórios
@@ -29,7 +35,7 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($data[$campo]) || empty($data[$campo])) {
             echo json_encode([
                 "status" => "error",
-                "message" => "O campo $campo é obrigatório"
+                "message" => "Campo obrigatório não informado: $campo"
             ]);
             exit;
         }

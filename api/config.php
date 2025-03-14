@@ -16,8 +16,24 @@ if ($conexao->connect_error) {
     ]));
 }
 
+// Inicia a sessão se ainda não estiver iniciada
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Função para criar as tabelas se não existirem
 function criarTabelas($conexao) {
+    // Tabela de usuários
+    $sql_usuarios = "CREATE TABLE IF NOT EXISTS usuarios (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nome VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL UNIQUE,
+        senha VARCHAR(255) NOT NULL,
+        nivel_acesso ENUM('admin', 'supervisor', 'operador') NOT NULL DEFAULT 'operador',
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )";
+    
     // Tabela de funcionários
     $sql_funcionarios = "CREATE TABLE IF NOT EXISTS funcionarios (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -44,6 +60,7 @@ function criarTabelas($conexao) {
     )";
     
     // Executa as queries
+    $conexao->query($sql_usuarios);
     $conexao->query($sql_funcionarios);
     $conexao->query($sql_producao);
     
@@ -58,6 +75,45 @@ function criarTabelas($conexao) {
             ('Carlos Oliveira', 'Supervisor', 'Produção'),
             ('Ana Pereira', 'Operadora', 'Produção')");
     }
+    
+    // Insere um usuário administrador padrão se a tabela estiver vazia
+    $result = $conexao->query("SELECT COUNT(*) as total FROM usuarios");
+    $row = $result->fetch_assoc();
+    
+    if ($row['total'] == 0) {
+        // Senha: admin123
+        $senha_hash = password_hash('admin123', PASSWORD_DEFAULT);
+        $conexao->query("INSERT INTO usuarios (nome, email, senha, nivel_acesso) VALUES 
+            ('Administrador', 'admin@sistema.com', '$senha_hash', 'admin')");
+    }
+}
+
+// Função para verificar se o usuário está autenticado
+function verificarAutenticacao() {
+    if (!isset($_SESSION['usuario_id'])) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Usuário não autenticado"
+        ]);
+        exit;
+    }
+    return true;
+}
+
+// Função para verificar o nível de acesso do usuário
+function verificarNivelAcesso($niveis_permitidos) {
+    verificarAutenticacao();
+    
+    if (!in_array($_SESSION['nivel_acesso'], $niveis_permitidos)) {
+        http_response_code(403);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Acesso negado. Nível de permissão insuficiente."
+        ]);
+        exit;
+    }
+    return true;
 }
 
 // Cria as tabelas se não existirem
@@ -65,7 +121,7 @@ criarTabelas($conexao);
 
 // Configurar cabeçalhos para permitir CORS
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, DELETE, PUT, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 header("Content-Type: application/json; charset=UTF-8");
 

@@ -2,6 +2,17 @@
 CREATE DATABASE IF NOT EXISTS sistema_producao;
 USE sistema_producao;
 
+-- Tabela de usuários
+CREATE TABLE IF NOT EXISTS usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    senha VARCHAR(255) NOT NULL,
+    nivel_acesso ENUM('admin', 'supervisor', 'operador') NOT NULL DEFAULT 'operador',
+    ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Tabela de funcionários
 CREATE TABLE IF NOT EXISTS funcionarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -33,6 +44,10 @@ INSERT INTO funcionarios (nome, cargo, setor) VALUES
     ('Maria Santos', 'Operadora', 'Produção'),
     ('Carlos Oliveira', 'Supervisor', 'Produção'),
     ('Ana Pereira', 'Operadora', 'Produção');
+
+-- Inserir um usuário administrador padrão (senha: admin123)
+INSERT INTO usuarios (nome, email, senha, nivel_acesso) VALUES
+    ('Administrador', 'admin@sistema.com', '$2y$10$8tGmGa1IYQM0YVXj2K.Xn.LQy9WyXXEHMXe7pPpEWA9CuqHvz4G4W', 'admin');
 
 -- Inserir alguns registros de produção de exemplo
 INSERT INTO producao (data_registro, id_funcionario, os, material, medida, quantidade, duracao, pontos, medalha) VALUES

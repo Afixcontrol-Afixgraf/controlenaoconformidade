@@ -1,127 +1,173 @@
 <?php
 require_once 'config.php';
 
-// Rota para obter todos os registros de produção
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Verificar se o usuário está autenticado
-    verificarAutenticacao();
-    
-    $sql = "SELECT p.*, f.nome as nome_funcionario 
-            FROM producao p 
-            JOIN funcionarios f ON p.id_funcionario = f.id 
-            ORDER BY p.data_registro DESC, p.id DESC";
-    $result = $conexao->query($sql);
-    
-    $registros = [];
-    while ($row = $result->fetch_assoc()) {
-        $registros[] = $row;
-    }
-    
-    echo json_encode([
-        "status" => "success",
-        "data" => $registros
-    ]);
-}
-// Rota para adicionar um novo registro de produção
-else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Verificar se o usuário está autenticado
-    verificarAutenticacao();
-    
-    $data = json_decode(file_get_contents("php://input"), true);
-    
-    // Validação dos campos obrigatórios
-    $campos_obrigatorios = ['id_funcionario', 'os', 'material', 'medida', 'quantidade', 'duracao'];
-    foreach ($campos_obrigatorios as $campo) {
-        if (!isset($data[$campo]) || empty($data[$campo])) {
-            echo json_encode([
-                "status" => "error",
-                "message" => "Campo obrigatório não informado: $campo"
-            ]);
-            exit;
-        }
-    }
-    
-    $id_funcionario = $data['id_funcionario'];
-    $os = $data['os'];
-    $material = $data['material'];
-    $medida = $data['medida'];
-    $quantidade = $data['quantidade'];
-    $duracao = $data['duracao']; // em minutos
-    
-    // Calcula os pontos (eficiência)
-    $pontos = $quantidade / $duracao;
-    
-    // Determina a medalha com base na quantidade
-    $medalha = "";
-    if ($quantidade >= 7000) {
-        $medalha = "Ouro";
-    } elseif ($quantidade >= 6000) {
-        $medalha = "Prata";
-    } elseif ($quantidade >= 5000) {
-        $medalha = "Bronze";
-    }
-    
-    // Insere o registro no banco de dados
-    $sql = "INSERT INTO producao (data_registro, id_funcionario, os, material, medida, quantidade, duracao, pontos, medalha) 
-            VALUES (CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    $stmt = $conexao->prepare($sql);
-    $stmt->bind_param("isssiiis", $id_funcionario, $os, $material, $medida, $quantidade, $duracao, $pontos, $medalha);
-    
-    if ($stmt->execute()) {
-        echo json_encode([
-            "status" => "success",
-            "message" => "Produção registrada com sucesso!",
-            "id" => $conexao->insert_id
-        ]);
-    } else {
-        echo json_encode([
-            "status" => "error",
-            "message" => "Erro ao registrar produção: " . $stmt->error
-        ]);
-    }
-    
-    $stmt->close();
-}
-// Rota para excluir um registro de produção
-else if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-    $data = json_decode(file_get_contents("php://input"), true);
-    
-    if (!isset($data['id']) || empty($data['id'])) {
-        echo json_encode([
-            "status" => "error",
-            "message" => "ID do registro é obrigatório"
-        ]);
-        exit;
-    }
-    
-    $id = $data['id'];
-    
-    $sql = "DELETE FROM producao WHERE id = ?";
-    $stmt = $conexao->prepare($sql);
-    $stmt->bind_param("i", $id);
-    
-    if ($stmt->execute()) {
-        echo json_encode([
-            "status" => "success",
-            "message" => "Registro excluído com sucesso!"
-        ]);
-    } else {
-        echo json_encode([
-            "status" => "error",
-            "message" => "Erro ao excluir registro: " . $stmt->error
-        ]);
-    }
-    
-    $stmt->close();
-}
-else {
-    http_response_code(405);
-    echo json_encode([
-        "status" => "error",
-        "message" => "Método não permitido"
-    ]);
+// Verificar autenticação
+$usuario = [
+    'id' => $_SESSION['usuario_id'],
+    'nivel_acesso' => $_SESSION['nivel_acesso']
+];
+
+if (!verificarAutenticacao()) {
+    exit;
 }
 
-$conexao->close();
-?> 
+try {
+    global $conexao;
+
+    // GET - Listar registros
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $id_funcionario = isset($_GET['id_funcionario']) ? $_GET['id_funcionario'] : null;
+        $filtro = isset($_GET['filtro']) ? $_GET['filtro'] : '';
+
+        // Construir a consulta base
+        $sql = "SELECT 
+                p.*, 
+                u.nome as nome_funcionario,
+                SEC_TO_TIME(p.duracao) as duracao_formatada
+                FROM producao p 
+                JOIN usuarios u ON p.id_funcionario = u.id 
+                WHERE 1=1";
+        $params = [];
+        $where = [];
+
+        // Aplicar filtro por funcionário se não for admin/supervisor
+        if ($usuario['nivel_acesso'] !== 'admin' && $usuario['nivel_acesso'] !== 'supervisor') {
+            $where[] = "p.id_funcionario = " . $usuario['id'];
+        }
+        // Se for admin/supervisor e um ID específico foi solicitado
+        elseif ($id_funcionario) {
+            $where[] = "p.id_funcionario = " . intval($id_funcionario);
+        }
+
+        // Aplicar filtros de data
+        switch ($filtro) {
+            case 'hoje':
+                $where[] = "DATE(p.data_registro) = CURDATE()";
+                break;
+            case 'semana':
+                $where[] = "YEARWEEK(p.data_registro) = YEARWEEK(CURDATE())";
+                break;
+            case 'mes':
+                $where[] = "YEAR(p.data_registro) = YEAR(CURDATE()) AND MONTH(p.data_registro) = MONTH(CURDATE())";
+                break;
+        }
+
+        // Adicionar condições WHERE se houver
+        if (!empty($where)) {
+            $sql .= " AND " . implode(" AND ", $where);
+        }
+
+        $sql .= " ORDER BY p.data_registro DESC";
+
+        $result = $conexao->query($sql);
+        $registros = [];
+
+        while ($row = $result->fetch_assoc()) {
+            // Usar a duração formatada
+            $row['duracao'] = $row['duracao_formatada'];
+            unset($row['duracao_formatada']);
+            $registros[] = $row;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'data' => $registros
+        ]);
+    }
+
+    // POST - Criar registro
+    else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $dados = json_decode(file_get_contents('php://input'), true);
+
+        // Validar se o usuário está registrando para si mesmo
+        if ($dados['id_funcionario'] != $usuario['id'] && $usuario['nivel_acesso'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'Não autorizado a registrar para outro funcionário']);
+            exit;
+        }
+
+        // Converter duração de HH:MM:SS para segundos
+        $partes_tempo = explode(':', $dados['duracao']);
+        $duracao_segundos = ($partes_tempo[0] * 3600) + ($partes_tempo[1] * 60) + $partes_tempo[2];
+
+        // Buscar configurações de medalhas ativas ordenadas por quantidade mínima (decrescente)
+        $sql = "SELECT * FROM config_medalhas WHERE ativo = 1 ORDER BY quantidade_minima DESC";
+        $result = $conexao->query($sql);
+
+        // Calcular medalha e pontos baseado nas configurações
+        $medalha = null;
+        $bonus_pontos = 1;
+        $pontos = $dados['quantidade'];
+
+        while ($config = $result->fetch_assoc()) {
+            if ($dados['quantidade'] >= $config['quantidade_minima']) {
+                $medalha = $config['nome'];
+                $bonus_pontos = $config['bonus_pontos'];
+                break;
+            }
+        }
+
+        // Aplicar bônus aos pontos
+        $pontos *= $bonus_pontos;
+
+        $sql = "INSERT INTO producao (id_funcionario, os, material, medida, quantidade, duracao, medalha, pontos, data_registro) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+        $stmt = $conexao->prepare($sql);
+        $stmt->bind_param(
+            'isssisds',
+            $dados['id_funcionario'],
+            $dados['os'],
+            $dados['material'],
+            $dados['medida'],
+            $dados['quantidade'],
+            $duracao_segundos,
+            $medalha,
+            $pontos
+        );
+        $stmt->execute();
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Registro criado com sucesso!'
+        ]);
+    }
+
+    // DELETE - Excluir registro
+    else if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        $dados = json_decode(file_get_contents('php://input'), true);
+
+        // Verificar se o usuário pode excluir o registro
+        if ($usuario['nivel_acesso'] !== 'admin' && $usuario['nivel_acesso'] !== 'supervisor') {
+            $sql = "SELECT id_funcionario FROM producao WHERE id = ? LIMIT 1";
+            $stmt = $conexao->prepare($sql);
+            $stmt->bind_param('i', $dados['id']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $registro = $result->fetch_assoc();
+
+            if (!$registro || $registro['id_funcionario'] != $usuario['id']) {
+                http_response_code(403);
+                echo json_encode(['status' => 'error', 'message' => 'Não autorizado a excluir este registro']);
+                exit;
+            }
+        }
+
+        $sql = "DELETE FROM producao WHERE id = ? LIMIT 1";
+        $stmt = $conexao->prepare($sql);
+        $stmt->bind_param('i', $dados['id']);
+        $stmt->execute();
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Registro excluído com sucesso!'
+        ]);
+    }
+
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Erro ao processar requisição: ' . $e->getMessage()
+    ]);
+}

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Configurações do Sistema de Produção">
+    <meta name="theme-color" content="#198754">
+    <title>Configurações - Sistema de Produção</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-gear-fill"></i> Sistema de Gestão Integrado
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">Início</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="producao.html">Produção</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="rnc.html">RNC</a>
+                    </li>
+                    <li class="nav-item" id="menu-usuarios">
+                        <a class="nav-link" href="usuarios.html">Usuários</a>
+                    </li>
+                    <li class="nav-item" id="menu-configuracoes">
+                        <a class="nav-link active" href="configuracoes.html">Configurações</a>
+                    </li>
+                </ul>
+                <div class="d-flex" id="area-usuario">
+                    <span class="navbar-text me-3 text-white" id="usuario-logado"></span>
+                    <button class="btn btn-outline-light btn-sm" id="btn-logout">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div id="alertContainer"></div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1>Configurações do Sistema</h1>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalMedalha">
+                        <i class="bi bi-plus-lg"></i> Nova Medalha
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Configurações de Medalhas</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ordem</th>
+                                <th>Nome</th>
+                                <th>Quantidade Mínima</th>
+                                <th>Bônus de Pontos</th>
+                                <th>Cor</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaMedalhas">
+                            <tr>
+                                <td colspan="7" class="text-center">Carregando configurações...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Medalha -->
+    <div class="modal fade" id="modalMedalha" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalMedalhaTitle">Nova Medalha</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formMedalha">
+                        <input type="hidden" id="medalha_id">
+                        <div class="mb-3">
+                            <label for="nome" class="form-label">Nome da Medalha</label>
+                            <input type="text" class="form-control" id="nome" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quantidade_minima" class="form-label">Quantidade Mínima</label>
+                            <input type="number" class="form-control" id="quantidade_minima" required min="1">
+                        </div>
+                        <div class="mb-3">
+                            <label for="bonus_pontos" class="form-label">Bônus de Pontos (multiplicador)</label>
+                            <input type="number" class="form-control" id="bonus_pontos" required min="1" step="0.01">
+                            <small class="text-muted">Ex: 1.30 para 30% de bônus</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cor" class="form-label">Cor</label>
+                            <input type="color" class="form-control" id="cor" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="ordem" class="form-label">Ordem</label>
+                            <input type="number" class="form-control" id="ordem" required min="1">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="ativo" checked>
+                                <label class="form-check-label" for="ativo">
+                                    Ativo
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarMedalha">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Verificar autenticação
+        fetch('api/usuarios.php?verificar_auth=1')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (!data.autenticado) {
+                        window.location.href = 'login.html';
+                    } else {
+                        // Verificar se é administrador
+                        if (data.usuario.nivel_acesso !== 'admin') {
+                            window.location.href = 'index.html';
+                        }
+                        document.getElementById('usuario-logado').textContent = `Olá, ${data.usuario.nome}`;
+                        if (data.usuario.nivel_acesso === 'admin') {
+                            document.getElementById('menu-usuarios').style.display = 'block';
+                            document.getElementById('menu-configuracoes').style.display = 'block';
+                        }
+                        carregarMedalhas();
+                    }
+                } else {
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                window.location.href = 'login.html';
+            });
+
+        // Configurar evento de logout
+        document.getElementById('btn-logout').addEventListener('click', function () {
+            fetch('api/usuarios.php?logout=1')
+                .then(response => response.json())
+                .then(data => {
+                    window.location.href = 'login.html';
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    window.location.href = 'login.html';
+                });
+        });
+
+        // Função para mostrar mensagens de alerta
+        function mostrarAlerta(mensagem, tipo) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertHTML = `
+                <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                    ${mensagem}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            `;
+            alertContainer.innerHTML = alertHTML;
+
+            setTimeout(() => {
+                const alert = document.querySelector('.alert');
+                if (alert) {
+                    alert.classList.remove('show');
+                    setTimeout(() => alertContainer.innerHTML = '', 150);
+                }
+            }, 5000);
+        }
+
+        // Carregar medalhas
+        async function carregarMedalhas() {
+            try {
+                const response = await fetch('api/configuracoes.php');
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const tabelaMedalhas = document.getElementById('tabelaMedalhas');
+
+                    if (data.data.length === 0) {
+                        tabelaMedalhas.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma medalha configurada</td></tr>';
+                        return;
+                    }
+
+                    let html = '';
+                    data.data.forEach(medalha => {
+                        html += `
+                            <tr>
+                                <td>${medalha.ordem}</td>
+                                <td>
+                                    <i class="bi bi-award-fill" style="color: ${medalha.cor}"></i>
+                                    ${medalha.nome}
+                                </td>
+                                <td>${parseInt(medalha.quantidade_minima).toLocaleString('pt-BR')}</td>
+                                <td>${((medalha.bonus_pontos - 1) * 100).toFixed(0)}%</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="color-preview me-2" style="width: 20px; height: 20px; background-color: ${medalha.cor}; border-radius: 4px;"></div>
+                                        ${medalha.cor}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge ${medalha.ativo ? 'bg-success' : 'bg-danger'}">
+                                        ${medalha.ativo ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editarMedalha(${JSON.stringify(medalha).replace(/"/g, '&quot;')})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="excluirMedalha(${medalha.id})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    tabelaMedalhas.innerHTML = html;
+                } else {
+                    mostrarAlerta('Erro ao carregar medalhas: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                mostrarAlerta('Erro ao carregar medalhas: ' + error.message, 'danger');
+            }
+        }
+
+        // Modal de medalha
+        const modalMedalha = new bootstrap.Modal(document.getElementById('modalMedalha'));
+        const formMedalha = document.getElementById('formMedalha');
+        const btnSalvarMedalha = document.getElementById('btnSalvarMedalha');
+
+        // Função para editar medalha
+        function editarMedalha(medalha) {
+            document.getElementById('medalha_id').value = medalha.id;
+            document.getElementById('nome').value = medalha.nome;
+            document.getElementById('quantidade_minima').value = medalha.quantidade_minima;
+            document.getElementById('bonus_pontos').value = medalha.bonus_pontos;
+            document.getElementById('cor').value = medalha.cor;
+            document.getElementById('ordem').value = medalha.ordem;
+            document.getElementById('ativo').checked = medalha.ativo == 1;
+
+            document.getElementById('modalMedalhaTitle').textContent = 'Editar Medalha';
+            modalMedalha.show();
+        }
+
+        // Função para excluir medalha
+        async function excluirMedalha(id) {
+            if (confirm('Tem certeza que deseja excluir esta medalha?')) {
+                try {
+                    const response = await fetch(`api/configuracoes.php?id=${id}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        mostrarAlerta(data.message, 'success');
+                        carregarMedalhas();
+                    } else {
+                        mostrarAlerta('Erro: ' + data.message, 'danger');
+                    }
+                } catch (error) {
+                    mostrarAlerta('Erro ao excluir medalha: ' + error.message, 'danger');
+                }
+            }
+        }
+
+        // Limpar formulário ao abrir modal
+        document.getElementById('modalMedalha').addEventListener('show.bs.modal', function (event) {
+            if (!event.relatedTarget) return; // Se for abertura para edição, não limpa
+
+            formMedalha.reset();
+            document.getElementById('medalha_id').value = '';
+            document.getElementById('modalMedalhaTitle').textContent = 'Nova Medalha';
+        });
+
+        // Salvar medalha
+        btnSalvarMedalha.addEventListener('click', async function () {
+            if (!formMedalha.checkValidity()) {
+                formMedalha.reportValidity();
+                return;
+            }
+
+            const id = document.getElementById('medalha_id').value;
+            const dados = {
+                nome: document.getElementById('nome').value,
+                quantidade_minima: parseInt(document.getElementById('quantidade_minima').value),
+                bonus_pontos: parseFloat(document.getElementById('bonus_pontos').value),
+                cor: document.getElementById('cor').value,
+                ordem: parseInt(document.getElementById('ordem').value),
+                ativo: document.getElementById('ativo').checked ? 1 : 0
+            };
+
+            try {
+                const method = id ? 'PUT' : 'POST';
+                if (id) dados.id = parseInt(id);
+
+                const response = await fetch('api/configuracoes.php', {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    mostrarAlerta(data.message, 'success');
+                    modalMedalha.hide();
+                    carregarMedalhas();
+                } else {
+                    mostrarAlerta('Erro: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                mostrarAlerta('Erro ao salvar medalha: ' + error.message, 'danger');
+            }
+        });
+    </script>
+</body>
+
+</html>

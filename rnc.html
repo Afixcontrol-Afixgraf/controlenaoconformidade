@@ -15,21 +15,37 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="bi bi-clipboard-check" aria-hidden="true"></i> Sistema de Não-Conformidades
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-gear-fill" aria-hidden="true"></i> Sistema de Gestão Integrado
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="#">Início</a>
+                        <a class="nav-link" href="index.html">Início</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNaoConformidade">Nova NC</a>
+                        <a class="nav-link" href="producao.html">Produção</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="rnc.html">RNC</a>
+                    </li>
+                    <li class="nav-item" id="menu-usuarios" style="display: none;">
+                        <a class="nav-link" href="usuarios.html">Usuários</a>
+                    </li>
+                    <li class="nav-item" id="menu-configuracoes" style="display: none;">
+                        <a class="nav-link" href="configuracoes.html">Configurações</a>
                     </li>
                 </ul>
+                <div class="d-flex" id="area-usuario">
+                    <span class="navbar-text me-3 text-white" id="usuario-logado"></span>
+                    <button class="btn btn-outline-light btn-sm" id="btn-logout">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
@@ -39,7 +55,8 @@
             <div class="col-12">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
                     <h1>Controle de Não-Conformidades</h1>
-                    <button class="btn btn-primary mt-2 mt-md-0" data-bs-toggle="modal" data-bs-target="#modalNaoConformidade">
+                    <button class="btn btn-primary mt-2 mt-md-0" data-bs-toggle="modal"
+                        data-bs-target="#modalNaoConformidade">
                         <i class="bi bi-plus-circle" aria-hidden="true"></i> Nova Não-Conformidade
                     </button>
                 </div>
@@ -133,7 +150,7 @@
                         <input type="hidden" id="idNaoConformidade">
 
                         <div class="row mb-3">
-                            <div class="col-md-8">
+                            <div class="col-md-4">
                                 <label for="titulo" class="form-label">Título</label>
                                 <input type="text" class="form-control" id="titulo" required>
                             </div>
@@ -309,7 +326,65 @@
         </div>
     </div>
 
+    <footer class="bg-light mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p>&copy; 2023 Sistema de Gestão Integrado</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p>Desenvolvido com <i class="bi bi-heart-fill text-danger"></i> pela Equipe de TI</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Verificar autenticação antes de qualquer coisa
+        fetch('api/usuarios.php?verificar_auth=1')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (!data.autenticado) {
+                        // Usuário não está autenticado, redirecionar para login
+                        window.location.href = 'login.html';
+                    } else {
+                        // Atualizar informações do usuário na navbar
+                        document.getElementById('usuario-logado').textContent = `Olá, ${data.usuario.nome}`;
+
+                        // Mostrar menu de usuários para admin e supervisor
+                        if (data.usuario.nivel_acesso === 'admin' || data.usuario.nivel_acesso === 'supervisor') {
+                            document.getElementById('menu-usuarios').style.display = 'block';
+                        }
+                        // Mostrar menu de configurações apenas para admin
+                        if (data.usuario.nivel_acesso === 'admin') {
+                            document.getElementById('menu-configuracoes').style.display = 'block';
+                        }
+                    }
+                } else {
+                    // Erro na verificação, redirecionar para login
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao verificar autenticação:', error);
+                window.location.href = 'login.html';
+            });
+
+        // Configurar evento de logout
+        document.getElementById('btn-logout').addEventListener('click', function () {
+            fetch('api/usuarios.php?logout=1')
+                .then(response => response.json())
+                .then(data => {
+                    window.location.href = 'login.html';
+                })
+                .catch(error => {
+                    console.error('Erro ao fazer logout:', error);
+                    window.location.href = 'login.html';
+                });
+        });
+    </script>
     <script src="assets/js/script.js"></script>
 </body>
 

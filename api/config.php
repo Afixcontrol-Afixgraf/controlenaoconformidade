@@ -22,7 +22,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Função para criar as tabelas se não existirem
-function criarTabelas($conexao) {
+function criarTabelas($conexao)
+{
     // Tabela de usuários
     $sql_usuarios = "CREATE TABLE IF NOT EXISTS usuarios (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -33,16 +34,19 @@ function criarTabelas($conexao) {
         ativo BOOLEAN NOT NULL DEFAULT TRUE,
         data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )";
-    
-    // Tabela de funcionários
-    $sql_funcionarios = "CREATE TABLE IF NOT EXISTS funcionarios (
+
+    // Tabela de configurações de medalhas
+    $sql_config_medalhas = "CREATE TABLE IF NOT EXISTS config_medalhas (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        nome VARCHAR(100) NOT NULL,
-        cargo VARCHAR(50),
-        setor VARCHAR(50),
-        data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        nome VARCHAR(50) NOT NULL,
+        quantidade_minima INT NOT NULL,
+        bonus_pontos DECIMAL(4,2) NOT NULL,
+        cor VARCHAR(20) NOT NULL,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        ordem INT NOT NULL,
+        data_modificacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )";
-    
+
     // Tabela de produção
     $sql_producao = "CREATE TABLE IF NOT EXISTS producao (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -56,30 +60,30 @@ function criarTabelas($conexao) {
         pontos FLOAT NOT NULL,
         medalha VARCHAR(20),
         data_hora_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (id_funcionario) REFERENCES funcionarios(id)
+        FOREIGN KEY (id_funcionario) REFERENCES usuarios(id)
     )";
-    
+
     // Executa as queries
     $conexao->query($sql_usuarios);
-    $conexao->query($sql_funcionarios);
+    $conexao->query($sql_config_medalhas);
     $conexao->query($sql_producao);
-    
-    // Insere alguns funcionários de exemplo se a tabela estiver vazia
-    $result = $conexao->query("SELECT COUNT(*) as total FROM funcionarios");
+
+    // Insere configurações padrão de medalhas se a tabela estiver vazia
+    $result = $conexao->query("SELECT COUNT(*) as total FROM config_medalhas");
     $row = $result->fetch_assoc();
-    
+
     if ($row['total'] == 0) {
-        $conexao->query("INSERT INTO funcionarios (nome, cargo, setor) VALUES 
-            ('João Silva', 'Operador', 'Produção'),
-            ('Maria Santos', 'Operadora', 'Produção'),
-            ('Carlos Oliveira', 'Supervisor', 'Produção'),
-            ('Ana Pereira', 'Operadora', 'Produção')");
+        $sql_default_medalhas = "INSERT INTO config_medalhas (nome, quantidade_minima, bonus_pontos, cor, ordem) VALUES 
+            ('Ouro', 7000, 1.30, '#FFD700', 1),
+            ('Prata', 6000, 1.20, '#C0C0C0', 2),
+            ('Bronze', 5000, 1.10, '#CD7F32', 3)";
+        $conexao->query($sql_default_medalhas);
     }
-    
+
     // Insere um usuário administrador padrão se a tabela estiver vazia
     $result = $conexao->query("SELECT COUNT(*) as total FROM usuarios");
     $row = $result->fetch_assoc();
-    
+
     if ($row['total'] == 0) {
         // Senha: admin123
         $senha_hash = password_hash('admin123', PASSWORD_DEFAULT);
@@ -89,7 +93,8 @@ function criarTabelas($conexao) {
 }
 
 // Função para verificar se o usuário está autenticado
-function verificarAutenticacao() {
+function verificarAutenticacao()
+{
     if (!isset($_SESSION['usuario_id'])) {
         http_response_code(401);
         echo json_encode([
@@ -102,9 +107,10 @@ function verificarAutenticacao() {
 }
 
 // Função para verificar o nível de acesso do usuário
-function verificarNivelAcesso($niveis_permitidos) {
+function verificarNivelAcesso($niveis_permitidos)
+{
     verificarAutenticacao();
-    
+
     if (!in_array($_SESSION['nivel_acesso'], $niveis_permitidos)) {
         http_response_code(403);
         echo json_encode([
@@ -130,4 +136,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
-?> 
+?>

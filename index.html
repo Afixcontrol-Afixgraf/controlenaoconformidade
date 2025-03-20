@@ -77,7 +77,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="index.html">
-                <i class="bi bi-gear-fill" aria-hidden="true"></i> Sistema de Gestão Integrado
+                <i class="bi bi-gear-fill" aria-hidden="true"></i> PRODSIS
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -205,29 +205,32 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        $(document).ready(function () {
             // Verificar autenticação
             verificarAutenticacao();
 
             // Função para verificar se o usuário está autenticado
             function verificarAutenticacao() {
-                fetch('api/usuarios.php?verificar_auth=1')
-                    .then(response => response.json())
-                    .then(data => {
+                $.ajax({
+                    url: 'api/usuarios.php',
+                    method: 'GET',
+                    data: { verificar_auth: 1 },
+                    dataType: 'json',
+                    success: function (data) {
                         if (data.status === 'success') {
                             if (data.autenticado) {
                                 // Usuário está autenticado, mostrar informações do usuário
-                                const areaUsuario = document.getElementById('area-usuario');
-                                areaUsuario.innerHTML = `
-                                <span class="navbar-text me-3 text-white">Olá, ${data.usuario.nome}</span>
-                                <button class="btn btn-outline-light btn-sm" id="btn-logout">
-                                    <i class="bi bi-box-arrow-right"></i> Sair
-                                </button>
-                            `;
+                                $('#area-usuario').html(`
+                                    <span class="navbar-text me-3 text-white">Olá, ${data.usuario.nome}</span>
+                                    <button class="btn btn-outline-light btn-sm" id="btn-logout">
+                                        <i class="bi bi-box-arrow-right"></i> Sair
+                                    </button>
+                                `);
 
                                 // Adicionar evento de logout
-                                document.getElementById('btn-logout').addEventListener('click', fazerLogout);
+                                $('#btn-logout').on('click', fazerLogout);
 
                                 // Mostrar menu de usuários para admin e supervisor
                                 if (data.usuario.nivel_acesso === 'admin' || data.usuario.nivel_acesso === 'supervisor') {
@@ -237,26 +240,81 @@
                                 if (data.usuario.nivel_acesso === 'admin') {
                                     document.getElementById('menu-configuracoes').style.display = 'block';
                                 }
+                            } else {
+                                // Usuário não está autenticado, mostrar formulário de login
+                                $('#area-usuario').html(`
+                                    <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#loginModal">
+                                        <i class="bi bi-box-arrow-in-right"></i> Entrar
+                                    </button>
+                                `);
                             }
                         }
-                    })
-                    .catch(error => {
-                        console.error('Erro ao verificar autenticação:', error);
-                    });
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Erro ao verificar autenticação:', status);
+                        $('#area-usuario').html(`
+                            <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#loginModal">
+                                <i class="bi bi-box-arrow-in-right"></i> Entrar
+                            </button>
+                        `);
+                    }
+                });
             }
 
             // Função para fazer logout
             function fazerLogout() {
-                fetch('api/usuarios.php?logout=1')
-                    .then(response => response.json())
-                    .then(data => {
-                        window.location.href = 'login.html';
-                    })
-                    .catch(error => {
+                $.ajax({
+                    url: 'api/usuarios.php',
+                    method: 'GET',
+                    data: { logout: 1 },
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.status === 'success') {
+                            window.location.reload();
+                        }
+                    },
+                    error: function (xhr, status, error) {
                         console.error('Erro ao fazer logout:', error);
-                        window.location.href = 'login.html';
-                    });
+                    }
+                });
             }
+
+            // Função para fazer login
+            function fazerLogin() {
+                const email = $('#email').val();
+                const senha = $('#senha').val();
+
+                $.ajax({
+                    url: 'api/usuarios.php',
+                    method: 'POST',
+                    data: JSON.stringify({
+                        email: email,
+                        senha: senha
+                    }),
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.status === 'success') {
+                            // Fechar o modal de login
+                            $('#loginModal').modal('hide');
+                            // Recarregar a página para atualizar o estado
+                            window.location.reload();
+                        } else {
+                            alert(data.message || 'Erro ao fazer login');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Erro ao fazer login:', error);
+                        alert('Erro ao fazer login. Tente novamente.');
+                    }
+                });
+            }
+
+            // Adicionar evento de submit no formulário de login
+            $('#formLogin').on('submit', function (e) {
+                e.preventDefault();
+                fazerLogin();
+            });
         });
     </script>
 </body>

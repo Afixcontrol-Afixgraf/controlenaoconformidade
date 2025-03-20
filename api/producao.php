@@ -1,13 +1,17 @@
 <?php
 require_once 'config.php';
 
+session_start();
+
 // Verificar autenticação
 $usuario = [
-    'id' => $_SESSION['usuario_id'],
-    'nivel_acesso' => $_SESSION['nivel_acesso']
+    'id' => $_SESSION['usuario_id'] ?? null,
+    'nivel_acesso' => $_SESSION['nivel_acesso'] ?? null
 ];
 
-if (!verificarAutenticacao()) {
+if (!$usuario['id']) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Não autenticado']);
     exit;
 }
 
@@ -32,11 +36,13 @@ try {
 
         // Aplicar filtro por funcionário se não for admin/supervisor
         if ($usuario['nivel_acesso'] !== 'admin' && $usuario['nivel_acesso'] !== 'supervisor') {
-            $where[] = "p.id_funcionario = " . $usuario['id'];
+            $where[] = "p.id_funcionario = :usuario_id";
+            $params[':usuario_id'] = $usuario['id'];
         }
         // Se for admin/supervisor e um ID específico foi solicitado
         elseif ($id_funcionario) {
-            $where[] = "p.id_funcionario = " . intval($id_funcionario);
+            $where[] = "p.id_funcionario = :id_funcionario";
+            $params[':id_funcionario'] = intval($id_funcionario);
         }
 
         // Aplicar filtros de data
@@ -59,10 +65,14 @@ try {
 
         $sql .= " ORDER BY p.data_registro DESC";
 
-        $result = $conexao->query($sql);
+        $stmt = $conexao->prepare($sql);
+        foreach ($params as $param => $value) {
+            $stmt->bindValue($param, $value);
+        }
+        $stmt->execute();
         $registros = [];
 
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             // Usar a duração formatada
             $row['duracao'] = $row['duracao_formatada'];
             unset($row['duracao_formatada']);
@@ -92,14 +102,14 @@ try {
 
         // Buscar configurações de medalhas ativas ordenadas por quantidade mínima (decrescente)
         $sql = "SELECT * FROM config_medalhas WHERE ativo = 1 ORDER BY quantidade_minima DESC";
-        $result = $conexao->query($sql);
+        $stmt = $conexao->query($sql);
 
         // Calcular medalha e pontos baseado nas configurações
         $medalha = null;
         $bonus_pontos = 1;
         $pontos = $dados['quantidade'];
 
-        while ($config = $result->fetch_assoc()) {
+        while ($config = $stmt->fetch(PDO::FETCH_ASSOC)) {
             if ($dados['quantidade'] >= $config['quantidade_minima']) {
                 $medalha = $config['nome'];
                 $bonus_pontos = $config['bonus_pontos'];
@@ -111,20 +121,17 @@ try {
         $pontos *= $bonus_pontos;
 
         $sql = "INSERT INTO producao (id_funcionario, os, material, medida, quantidade, duracao, medalha, pontos, data_registro) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                VALUES (:id_funcionario, :os, :material, :medida, :quantidade, :duracao, :medalha, :pontos, NOW())";
 
         $stmt = $conexao->prepare($sql);
-        $stmt->bind_param(
-            'isssisds',
-            $dados['id_funcionario'],
-            $dados['os'],
-            $dados['material'],
-            $dados['medida'],
-            $dados['quantidade'],
-            $duracao_segundos,
-            $medalha,
-            $pontos
-        );
+        $stmt->bindParam(':id_funcionario', $dados['id_funcionario'], PDO::PARAM_INT);
+        $stmt->bindParam(':os', $dados['os']);
+        $stmt->bindParam(':material', $dados['material']);
+        $stmt->bindParam(':medida', $dados['medida']);
+        $stmt->bindParam(':quantidade', $dados['quantidade'], PDO::PARAM_INT);
+        $stmt->bindParam(':duracao', $duracao_segundos, PDO::PARAM_INT);
+        $stmt->bindParam(':medalha', $medalha);
+        $stmt->bindParam(':pontos', $pontos);
         $stmt->execute();
 
         echo json_encode([
@@ -139,12 +146,11 @@ try {
 
         // Verificar se o usuário pode excluir o registro
         if ($usuario['nivel_acesso'] !== 'admin' && $usuario['nivel_acesso'] !== 'supervisor') {
-            $sql = "SELECT id_funcionario FROM producao WHERE id = ? LIMIT 1";
+            $sql = "SELECT id_funcionario FROM producao WHERE id = :id LIMIT 1";
             $stmt = $conexao->prepare($sql);
-            $stmt->bind_param('i', $dados['id']);
+            $stmt->bindParam(':id', $dados['id'], PDO::PARAM_INT);
             $stmt->execute();
-            $result = $stmt->get_result();
-            $registro = $result->fetch_assoc();
+            $registro = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$registro || $registro['id_funcionario'] != $usuario['id']) {
                 http_response_code(403);
@@ -153,9 +159,9 @@ try {
             }
         }
 
-        $sql = "DELETE FROM producao WHERE id = ? LIMIT 1";
+        $sql = "DELETE FROM producao WHERE id = :id LIMIT 1";
         $stmt = $conexao->prepare($sql);
-        $stmt->bind_param('i', $dados['id']);
+        $stmt->bindParam(':id', $dados['id'], PDO::PARAM_INT);
         $stmt->execute();
 
         echo json_encode([

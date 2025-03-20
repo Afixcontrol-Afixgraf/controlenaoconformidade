@@ -1,14 +1,17 @@
 <?php
 require_once 'config.php';
 
+session_start();
+
 // Verificar autenticação
 $usuario = [
-    'id' => $_SESSION['usuario_id'],
-    'nivel_acesso' => $_SESSION['nivel_acesso']
+    'id' => $_SESSION['usuario_id'] ?? null,
+    'nivel_acesso' => $_SESSION['nivel_acesso'] ?? null
 ];
 
 // Apenas administradores podem acessar as configurações
-if (!verificarNivelAcesso(['admin'])) {
+if ($usuario['nivel_acesso'] !== 'admin') {
+    echo json_encode(['status' => 'error', 'message' => 'Acesso não autorizado']);
     exit;
 }
 
@@ -18,10 +21,10 @@ try {
     // GET - Listar configurações
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $sql = "SELECT * FROM config_medalhas ORDER BY ordem";
-        $result = $conexao->query($sql);
+        $stmt = $conexao->query($sql);
         $configuracoes = [];
 
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $configuracoes[] = $row;
         }
 
@@ -36,17 +39,14 @@ try {
         $dados = json_decode(file_get_contents('php://input'), true);
 
         $sql = "INSERT INTO config_medalhas (nome, quantidade_minima, bonus_pontos, cor, ordem) 
-                VALUES (?, ?, ?, ?, ?)";
+                VALUES (:nome, :quantidade_minima, :bonus_pontos, :cor, :ordem)";
 
         $stmt = $conexao->prepare($sql);
-        $stmt->bind_param(
-            'sidsi',
-            $dados['nome'],
-            $dados['quantidade_minima'],
-            $dados['bonus_pontos'],
-            $dados['cor'],
-            $dados['ordem']
-        );
+        $stmt->bindParam(':nome', $dados['nome']);
+        $stmt->bindParam(':quantidade_minima', $dados['quantidade_minima']);
+        $stmt->bindParam(':bonus_pontos', $dados['bonus_pontos']);
+        $stmt->bindParam(':cor', $dados['cor']);
+        $stmt->bindParam(':ordem', $dados['ordem']);
         $stmt->execute();
 
         echo json_encode([
@@ -60,25 +60,22 @@ try {
         $dados = json_decode(file_get_contents('php://input'), true);
 
         $sql = "UPDATE config_medalhas 
-                SET nome = ?, 
-                    quantidade_minima = ?, 
-                    bonus_pontos = ?, 
-                    cor = ?, 
-                    ordem = ?,
-                    ativo = ?
-                WHERE id = ?";
+                SET nome = :nome, 
+                    quantidade_minima = :quantidade_minima, 
+                    bonus_pontos = :bonus_pontos, 
+                    cor = :cor, 
+                    ordem = :ordem,
+                    ativo = :ativo
+                WHERE id = :id";
 
         $stmt = $conexao->prepare($sql);
-        $stmt->bind_param(
-            'sidsiii',
-            $dados['nome'],
-            $dados['quantidade_minima'],
-            $dados['bonus_pontos'],
-            $dados['cor'],
-            $dados['ordem'],
-            $dados['ativo'],
-            $dados['id']
-        );
+        $stmt->bindParam(':nome', $dados['nome']);
+        $stmt->bindParam(':quantidade_minima', $dados['quantidade_minima']);
+        $stmt->bindParam(':bonus_pontos', $dados['bonus_pontos']);
+        $stmt->bindParam(':cor', $dados['cor']);
+        $stmt->bindParam(':ordem', $dados['ordem']);
+        $stmt->bindParam(':ativo', $dados['ativo']);
+        $stmt->bindParam(':id', $dados['id']);
         $stmt->execute();
 
         echo json_encode([
@@ -91,9 +88,9 @@ try {
     else if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-        $sql = "DELETE FROM config_medalhas WHERE id = ?";
+        $sql = "DELETE FROM config_medalhas WHERE id = :id";
         $stmt = $conexao->prepare($sql);
-        $stmt->bind_param('i', $id);
+        $stmt->bindParam(':id', $id);
         $stmt->execute();
 
         echo json_encode([

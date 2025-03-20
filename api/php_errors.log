@@ -1,0 +1,24 @@
+[19-Mar-2025 12:57:42 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 6
+[19-Mar-2025 12:57:42 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 7
+[19-Mar-2025 12:57:42 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function verificarNivelAcesso() in C:\inetpub\wwwroot\prodsis\api\configuracoes.php:11
+Stack trace:
+#0 {main}
+  thrown in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 11
+[19-Mar-2025 12:57:46 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\producao.php on line 6
+[19-Mar-2025 12:57:46 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\producao.php on line 7
+[19-Mar-2025 12:57:46 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function verificarAutenticacao() in C:\inetpub\wwwroot\prodsis\api\producao.php:10
+Stack trace:
+#0 {main}
+  thrown in C:\inetpub\wwwroot\prodsis\api\producao.php on line 10
+[19-Mar-2025 12:58:01 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 6
+[19-Mar-2025 12:58:01 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 7
+[19-Mar-2025 12:58:01 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function verificarNivelAcesso() in C:\inetpub\wwwroot\prodsis\api\configuracoes.php:11
+Stack trace:
+#0 {main}
+  thrown in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 11
+[19-Mar-2025 12:59:18 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 6
+[19-Mar-2025 12:59:18 UTC] PHP Notice:  Undefined variable: _SESSION in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 7
+[19-Mar-2025 12:59:18 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function verificarNivelAcesso() in C:\inetpub\wwwroot\prodsis\api\configuracoes.php:11
+Stack trace:
+#0 {main}
+  thrown in C:\inetpub\wwwroot\prodsis\api\configuracoes.php on line 11

@@ -1,9 +1,12 @@
 <?php
-require_once 'conexao.php';
-require_once 'autenticacao.php';
+require_once 'config.php';
 
 // Verificar autenticação
-$usuario = verificarAutenticacao();
+$usuario = [
+    'id' => $_SESSION['usuario_id'] ?? null,
+    'nivel_acesso' => $_SESSION['nivel_acesso'] ?? null
+];
+
 if (!$usuario || ($usuario['nivel_acesso'] !== 'admin' && $usuario['nivel_acesso'] !== 'supervisor')) {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'Acesso não autorizado']);
@@ -11,8 +14,6 @@ if (!$usuario || ($usuario['nivel_acesso'] !== 'admin' && $usuario['nivel_acesso
 }
 
 try {
-    $pdo = getConexao();
-
     // Obter o primeiro dia do mês atual
     $primeiroDiaMes = date('Y-m-01');
 
@@ -33,7 +34,7 @@ try {
             ORDER BY pontos DESC
             LIMIT 3";
 
-    $stmt = $pdo->prepare($sql);
+    $stmt = $conexao->prepare($sql);
     $stmt->execute(['primeiro_dia_mes' => $primeiroDiaMes]);
     $ranking = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

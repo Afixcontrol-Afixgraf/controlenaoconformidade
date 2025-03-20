@@ -1,4 +1,14 @@
 <?php
+// Configurações do cabeçalho
+header('Content-Type: application/json; charset=UTF-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// Iniciar sessão
+session_start();
+
+// Incluir arquivo de configuração com a conexão PDO
 require_once 'config.php';
 
 // Obter o método HTTP
@@ -39,8 +49,33 @@ switch ($metodo) {
         break;
 }
 
+// Função para verificar nível de acesso
+function verificarNivelAcesso($niveis_permitidos)
+{
+    // Verificar se o usuário está logado
+    if (!isset($_SESSION['usuario_id'])) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Usuário não autenticado"
+        ]);
+        exit;
+    }
+
+    // Verificar se o nível de acesso do usuário está entre os permitidos
+    if (!in_array($_SESSION['nivel_acesso'], $niveis_permitidos)) {
+        http_response_code(403);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Acesso negado. Nível de permissão insuficiente."
+        ]);
+        exit;
+    }
+}
+
 // Função para verificar o status de autenticação do usuário atual
-function verificarStatusAutenticacao() {
+function verificarStatusAutenticacao()
+{
     if (isset($_SESSION['usuario_id'])) {
         echo json_encode([
             "status" => "success",
@@ -61,12 +96,13 @@ function verificarStatusAutenticacao() {
 }
 
 // Função para fazer login
-function fazerLogin() {
+function fazerLogin()
+{
     global $conexao;
-    
+
     // Obter dados do corpo da requisição
     $dados = json_decode(file_get_contents("php://input"), true);
-    
+
     // Verificar se os dados necessários foram fornecidos
     if (!isset($dados['email']) || !isset($dados['senha'])) {
         http_response_code(400);
@@ -76,65 +112,71 @@ function fazerLogin() {
         ]);
         return;
     }
-    
-    // Escapar os dados para evitar SQL Injection
-    $email = $conexao->real_escape_string($dados['email']);
-    
-    // Buscar usuário pelo email
-    $sql = "SELECT id, nome, email, senha, nivel_acesso, ativo FROM usuarios WHERE email = '$email'";
-    $resultado = $conexao->query($sql);
-    
-    if ($resultado->num_rows === 0) {
-        http_response_code(401);
+
+    try {
+        // Buscar usuário pelo email
+        $stmt = $conexao->prepare("SELECT id, nome, email, senha, nivel_acesso, ativo FROM usuarios WHERE email = ?");
+        $stmt->execute([$dados['email']]);
+
+        if ($stmt->rowCount() === 0) {
+            http_response_code(401);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Email ou senha incorretos"
+            ]);
+            return;
+        }
+
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Verificar se o usuário está ativo
+        if (!$usuario['ativo']) {
+            http_response_code(401);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Usuário desativado. Entre em contato com o administrador."
+            ]);
+            return;
+        }
+
+        // Verificar a senha
+        if (!password_verify($dados['senha'], $usuario['senha'])) {
+            http_response_code(401);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Email ou senha incorretos"
+            ]);
+            return;
+        }
+
+        // Armazenar dados do usuário na sessão
+        $_SESSION['usuario_id'] = $usuario['id'];
+        $_SESSION['nome'] = $usuario['nome'];
+        $_SESSION['email'] = $usuario['email'];
+        $_SESSION['nivel_acesso'] = $usuario['nivel_acesso'];
+
+        // Retornar dados do usuário (exceto a senha)
+        unset($usuario['senha']);
+        echo json_encode([
+            "status" => "success",
+            "message" => "Login realizado com sucesso",
+            "usuario" => $usuario
+        ]);
+    } catch (PDOException $e) {
+        http_response_code(500);
         echo json_encode([
             "status" => "error",
-            "message" => "Email ou senha incorretos"
+            "message" => "Erro ao processar login: " . $e->getMessage()
         ]);
-        return;
     }
-    
-    $usuario = $resultado->fetch_assoc();
-    
-    // Verificar se o usuário está ativo
-    if (!$usuario['ativo']) {
-        http_response_code(401);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Usuário desativado. Entre em contato com o administrador."
-        ]);
-        return;
-    }
-    
-    // Verificar a senha
-    if (!password_verify($dados['senha'], $usuario['senha'])) {
-        http_response_code(401);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Email ou senha incorretos"
-        ]);
-        return;
-    }
-    
-    // Armazenar dados do usuário na sessão
-    $_SESSION['usuario_id'] = $usuario['id'];
-    $_SESSION['nome'] = $usuario['nome'];
-    $_SESSION['email'] = $usuario['email'];
-    $_SESSION['nivel_acesso'] = $usuario['nivel_acesso'];
-    
-    // Retornar dados do usuário (exceto a senha)
-    unset($usuario['senha']);
-    echo json_encode([
-        "status" => "success",
-        "message" => "Login realizado com sucesso",
-        "usuario" => $usuario
-    ]);
 }
 
 // Função para fazer logout
-function fazerLogout() {
+function fazerLogout()
+{
     // Destruir a sessão
     session_destroy();
-    
+
     echo json_encode([
         "status" => "success",
         "message" => "Logout realizado com sucesso"
@@ -142,167 +184,54 @@ function fazerLogout() {
 }
 
 // Função para listar usuários
-function listarUsuarios() {
+function listarUsuarios()
+{
     global $conexao;
-    
-    // Verificar se o usuário tem permissão (admin ou supervisor)
-    verificarNivelAcesso(['admin', 'supervisor']);
-    
-    // Buscar todos os usuários (exceto a senha)
-    $sql = "SELECT id, nome, email, nivel_acesso, ativo, data_cadastro FROM usuarios ORDER BY nome";
-    $resultado = $conexao->query($sql);
-    
-    $usuarios = [];
-    while ($usuario = $resultado->fetch_assoc()) {
-        $usuarios[] = $usuario;
-    }
-    
-    echo json_encode([
-        "status" => "success",
-        "usuarios" => $usuarios
-    ]);
-}
 
-// Função para cadastrar um novo usuário
-function cadastrarUsuario() {
-    global $conexao;
-    
-    // Verificar se o usuário tem permissão (apenas admin)
-    verificarNivelAcesso(['admin']);
-    
-    // Obter dados do corpo da requisição
-    $dados = json_decode(file_get_contents("php://input"), true);
-    
-    // Verificar se os dados necessários foram fornecidos
-    if (!isset($dados['nome']) || !isset($dados['email']) || !isset($dados['senha']) || !isset($dados['nivel_acesso'])) {
-        http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Dados incompletos. Nome, email, senha e nível de acesso são obrigatórios."
-        ]);
-        return;
-    }
-    
-    // Validar o nível de acesso
-    $niveis_validos = ['admin', 'supervisor', 'operador'];
-    if (!in_array($dados['nivel_acesso'], $niveis_validos)) {
-        http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Nível de acesso inválido. Valores permitidos: admin, supervisor, operador."
-        ]);
-        return;
-    }
-    
-    // Escapar os dados para evitar SQL Injection
-    $nome = $conexao->real_escape_string($dados['nome']);
-    $email = $conexao->real_escape_string($dados['email']);
-    $nivel_acesso = $conexao->real_escape_string($dados['nivel_acesso']);
-    
-    // Verificar se o email já está em uso
-    $sql = "SELECT id FROM usuarios WHERE email = '$email'";
-    $resultado = $conexao->query($sql);
-    
-    if ($resultado->num_rows > 0) {
-        http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Este email já está em uso."
-        ]);
-        return;
-    }
-    
-    // Criptografar a senha
-    $senha_hash = password_hash($dados['senha'], PASSWORD_DEFAULT);
-    
-    // Inserir o novo usuário
-    $sql = "INSERT INTO usuarios (nome, email, senha, nivel_acesso) VALUES ('$nome', '$email', '$senha_hash', '$nivel_acesso')";
-    
-    if ($conexao->query($sql)) {
-        $id = $conexao->insert_id;
+    try {
+        // Verificar se o usuário tem permissão (admin ou supervisor)
+        verificarNivelAcesso(['admin', 'supervisor']);
+
+        // Buscar todos os usuários (exceto a senha)
+        $stmt = $conexao->query("SELECT id, nome, email, nivel_acesso, ativo, data_cadastro FROM usuarios ORDER BY nome");
+        $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
         echo json_encode([
             "status" => "success",
-            "message" => "Usuário cadastrado com sucesso",
-            "id" => $id
+            "usuarios" => $usuarios
         ]);
-    } else {
+    } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode([
             "status" => "error",
-            "message" => "Erro ao cadastrar usuário: " . $conexao->error
+            "message" => "Erro ao listar usuários: " . $e->getMessage()
         ]);
     }
 }
 
-// Função para atualizar um usuário existente
-function atualizarUsuario() {
+// Função para cadastrar um novo usuário
+function cadastrarUsuario()
+{
     global $conexao;
-    
-    // Verificar se o usuário tem permissão (apenas admin)
-    verificarNivelAcesso(['admin']);
-    
-    // Obter dados do corpo da requisição
-    $dados = json_decode(file_get_contents("php://input"), true);
-    
-    // Verificar se o ID foi fornecido
-    if (!isset($dados['id'])) {
-        http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "message" => "ID do usuário é obrigatório"
-        ]);
-        return;
-    }
-    
-    // Escapar os dados para evitar SQL Injection
-    $id = $conexao->real_escape_string($dados['id']);
-    
-    // Verificar se o usuário existe
-    $sql = "SELECT id FROM usuarios WHERE id = $id";
-    $resultado = $conexao->query($sql);
-    
-    if ($resultado->num_rows === 0) {
-        http_response_code(404);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Usuário não encontrado"
-        ]);
-        return;
-    }
-    
-    // Construir a query de atualização
-    $campos = [];
-    
-    if (isset($dados['nome'])) {
-        $nome = $conexao->real_escape_string($dados['nome']);
-        $campos[] = "nome = '$nome'";
-    }
-    
-    if (isset($dados['email'])) {
-        $email = $conexao->real_escape_string($dados['email']);
-        
-        // Verificar se o email já está em uso por outro usuário
-        $sql = "SELECT id FROM usuarios WHERE email = '$email' AND id != $id";
-        $resultado = $conexao->query($sql);
-        
-        if ($resultado->num_rows > 0) {
+
+    try {
+        // Verificar se o usuário tem permissão (apenas admin)
+        verificarNivelAcesso(['admin']);
+
+        // Obter dados do corpo da requisição
+        $dados = json_decode(file_get_contents("php://input"), true);
+
+        // Verificar se os dados necessários foram fornecidos
+        if (!isset($dados['nome']) || !isset($dados['email']) || !isset($dados['senha']) || !isset($dados['nivel_acesso'])) {
             http_response_code(400);
             echo json_encode([
                 "status" => "error",
-                "message" => "Este email já está em uso por outro usuário."
+                "message" => "Dados incompletos. Nome, email, senha e nível de acesso são obrigatórios."
             ]);
             return;
         }
-        
-        $campos[] = "email = '$email'";
-    }
-    
-    if (isset($dados['senha']) && !empty($dados['senha'])) {
-        $senha_hash = password_hash($dados['senha'], PASSWORD_DEFAULT);
-        $campos[] = "senha = '$senha_hash'";
-    }
-    
-    if (isset($dados['nivel_acesso'])) {
+
+        // Validar o nível de acesso
         $niveis_validos = ['admin', 'supervisor', 'operador'];
         if (!in_array($dados['nivel_acesso'], $niveis_validos)) {
             http_response_code(400);
@@ -312,99 +241,248 @@ function atualizarUsuario() {
             ]);
             return;
         }
-        
-        $nivel_acesso = $conexao->real_escape_string($dados['nivel_acesso']);
-        $campos[] = "nivel_acesso = '$nivel_acesso'";
-    }
-    
-    if (isset($dados['ativo'])) {
-        $ativo = $dados['ativo'] ? 1 : 0;
-        $campos[] = "ativo = $ativo";
-    }
-    
-    // Se não houver campos para atualizar
-    if (empty($campos)) {
-        http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Nenhum dado fornecido para atualização"
+
+        // Verificar se o email já está em uso
+        $stmt = $conexao->prepare("SELECT id FROM usuarios WHERE email = ?");
+        $stmt->execute([$dados['email']]);
+
+        if ($stmt->rowCount() > 0) {
+            http_response_code(400);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Este email já está em uso."
+            ]);
+            return;
+        }
+
+        // Criptografar a senha
+        $senha_hash = password_hash($dados['senha'], PASSWORD_DEFAULT);
+
+        // Inserir o novo usuário
+        $stmt = $conexao->prepare("INSERT INTO usuarios (nome, email, senha, nivel_acesso) VALUES (?, ?, ?, ?)");
+        $resultado = $stmt->execute([
+            $dados['nome'],
+            $dados['email'],
+            $senha_hash,
+            $dados['nivel_acesso']
         ]);
-        return;
-    }
-    
-    // Executar a atualização
-    $sql = "UPDATE usuarios SET " . implode(", ", $campos) . " WHERE id = $id";
-    
-    if ($conexao->query($sql)) {
-        echo json_encode([
-            "status" => "success",
-            "message" => "Usuário atualizado com sucesso"
-        ]);
-    } else {
+
+        if ($resultado) {
+            $id = $conexao->lastInsertId();
+            echo json_encode([
+                "status" => "success",
+                "message" => "Usuário cadastrado com sucesso",
+                "id" => $id
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Erro ao cadastrar usuário"
+            ]);
+        }
+    } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode([
             "status" => "error",
-            "message" => "Erro ao atualizar usuário: " . $conexao->error
+            "message" => "Erro ao cadastrar usuário: " . $e->getMessage()
+        ]);
+    }
+}
+
+// Função para atualizar um usuário existente
+function atualizarUsuario()
+{
+    global $conexao;
+
+    try {
+        // Verificar se o usuário tem permissão (apenas admin)
+        verificarNivelAcesso(['admin']);
+
+        // Obter dados do corpo da requisição
+        $dados = json_decode(file_get_contents("php://input"), true);
+
+        // Verificar se o ID foi fornecido
+        if (!isset($dados['id'])) {
+            http_response_code(400);
+            echo json_encode([
+                "status" => "error",
+                "message" => "ID do usuário é obrigatório"
+            ]);
+            return;
+        }
+
+        // Verificar se o usuário existe
+        $stmt = $conexao->prepare("SELECT id FROM usuarios WHERE id = ?");
+        $stmt->execute([$dados['id']]);
+
+        if ($stmt->rowCount() === 0) {
+            http_response_code(404);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Usuário não encontrado"
+            ]);
+            return;
+        }
+
+        // Construir a query de atualização
+        $campos = [];
+        $valores = [];
+
+        if (isset($dados['nome'])) {
+            $campos[] = "nome = ?";
+            $valores[] = $dados['nome'];
+        }
+
+        if (isset($dados['email'])) {
+            // Verificar se o email já está em uso por outro usuário
+            $stmt = $conexao->prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?");
+            $stmt->execute([$dados['email'], $dados['id']]);
+
+            if ($stmt->rowCount() > 0) {
+                http_response_code(400);
+                echo json_encode([
+                    "status" => "error",
+                    "message" => "Este email já está em uso por outro usuário."
+                ]);
+                return;
+            }
+
+            $campos[] = "email = ?";
+            $valores[] = $dados['email'];
+        }
+
+        if (isset($dados['senha']) && !empty($dados['senha'])) {
+            $senha_hash = password_hash($dados['senha'], PASSWORD_DEFAULT);
+            $campos[] = "senha = ?";
+            $valores[] = $senha_hash;
+        }
+
+        if (isset($dados['nivel_acesso'])) {
+            $niveis_validos = ['admin', 'supervisor', 'operador'];
+            if (!in_array($dados['nivel_acesso'], $niveis_validos)) {
+                http_response_code(400);
+                echo json_encode([
+                    "status" => "error",
+                    "message" => "Nível de acesso inválido. Valores permitidos: admin, supervisor, operador."
+                ]);
+                return;
+            }
+
+            $campos[] = "nivel_acesso = ?";
+            $valores[] = $dados['nivel_acesso'];
+        }
+
+        if (isset($dados['ativo'])) {
+            $campos[] = "ativo = ?";
+            $valores[] = $dados['ativo'] ? 1 : 0;
+        }
+
+        // Se não houver campos para atualizar
+        if (empty($campos)) {
+            http_response_code(400);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Nenhum dado fornecido para atualização"
+            ]);
+            return;
+        }
+
+        // Adicionar ID ao final dos valores
+        $valores[] = $dados['id'];
+
+        // Executar a atualização
+        $sql = "UPDATE usuarios SET " . implode(", ", $campos) . " WHERE id = ?";
+        $stmt = $conexao->prepare($sql);
+        $resultado = $stmt->execute($valores);
+
+        if ($resultado) {
+            echo json_encode([
+                "status" => "success",
+                "message" => "Usuário atualizado com sucesso"
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Erro ao atualizar usuário"
+            ]);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Erro ao atualizar usuário: " . $e->getMessage()
         ]);
     }
 }
 
 // Função para excluir um usuário
-function excluirUsuario() {
+function excluirUsuario()
+{
     global $conexao;
-    
-    // Verificar se o usuário tem permissão (apenas admin)
-    verificarNivelAcesso(['admin']);
-    
-    // Obter o ID do usuário a ser excluído
-    $id = isset($_GET['id']) ? $conexao->real_escape_string($_GET['id']) : null;
-    
-    if (!$id) {
-        http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "message" => "ID do usuário é obrigatório"
-        ]);
-        return;
-    }
-    
-    // Verificar se o usuário existe
-    $sql = "SELECT id FROM usuarios WHERE id = $id";
-    $resultado = $conexao->query($sql);
-    
-    if ($resultado->num_rows === 0) {
-        http_response_code(404);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Usuário não encontrado"
-        ]);
-        return;
-    }
-    
-    // Verificar se o usuário está tentando excluir a si mesmo
-    if ($_SESSION['usuario_id'] == $id) {
-        http_response_code(400);
-        echo json_encode([
-            "status" => "error",
-            "message" => "Não é possível excluir o próprio usuário"
-        ]);
-        return;
-    }
-    
-    // Excluir o usuário
-    $sql = "DELETE FROM usuarios WHERE id = $id";
-    
-    if ($conexao->query($sql)) {
-        echo json_encode([
-            "status" => "success",
-            "message" => "Usuário excluído com sucesso"
-        ]);
-    } else {
+
+    try {
+        // Verificar se o usuário tem permissão (apenas admin)
+        verificarNivelAcesso(['admin']);
+
+        // Obter o ID do usuário a ser excluído
+        $id = isset($_GET['id']) ? $_GET['id'] : null;
+
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode([
+                "status" => "error",
+                "message" => "ID do usuário é obrigatório"
+            ]);
+            return;
+        }
+
+        // Verificar se o usuário existe
+        $stmt = $conexao->prepare("SELECT id FROM usuarios WHERE id = ?");
+        $stmt->execute([$id]);
+
+        if ($stmt->rowCount() === 0) {
+            http_response_code(404);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Usuário não encontrado"
+            ]);
+            return;
+        }
+
+        // Verificar se o usuário está tentando excluir a si mesmo
+        if ($_SESSION['usuario_id'] == $id) {
+            http_response_code(400);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Não é possível excluir o próprio usuário"
+            ]);
+            return;
+        }
+
+        // Excluir o usuário
+        $stmt = $conexao->prepare("DELETE FROM usuarios WHERE id = ?");
+        $resultado = $stmt->execute([$id]);
+
+        if ($resultado) {
+            echo json_encode([
+                "status" => "success",
+                "message" => "Usuário excluído com sucesso"
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Erro ao excluir usuário"
+            ]);
+        }
+    } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode([
             "status" => "error",
-            "message" => "Erro ao excluir usuário: " . $conexao->error
+            "message" => "Erro ao excluir usuário: " . $e->getMessage()
         ]);
     }
 }
-?> 
+?>
